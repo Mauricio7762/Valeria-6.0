@@ -1,0 +1,67 @@
+# ============================================
+# VALERIA 6.0 - Configuración del Sistema Glial
+# ============================================
+# Infraestructura cognitiva de soporte (no piensa, hace posible el pensamiento)
+
+enabled: true
+
+# --- Astrocitos: Regulación y Homeostasis Cognitiva ---
+astrocitos:
+  enabled: true
+  description: "Control de activación de módulos, balanceo de carga y modulación de atención"
+  load_balancing:
+    enabled: true
+    check_interval_seconds: 3
+    reduce_vision_threshold: 0.85      # Si saturación > 85%, reducir frecuencia de visión
+    token_budget_modulation: true
+  attention:
+    keep_hot_contexts: true
+    max_hot_contexts: 12
+    decay_seconds: 300
+  activation_control:
+    min_activation: 0.1
+    max_activation: 1.0
+    soft_start: true
+
+# --- Oligodendrocitos: Mielinización / Optimización de rutas ---
+oligodendrocitos:
+  enabled: true
+  description: "Caché de rutas frecuentes y compilación de pipelines recurrentes"
+  cache:
+    enabled: true
+    max_entries: 512
+    ttl_seconds: 3600
+    path: "ALMACENAMIENTO/CACHE/glial_cache"
+  myelinization:
+    enabled: true
+    min_hits_to_myelinize: 5          # Después de 5 usos se "mieliniza" la ruta
+    compile_pipelines: true
+    persistent_intermediates: true
+
+# --- Microglía: Limpieza, Defensa y Poda ---
+microglia:
+  enabled: true
+  description: "Sistema inmune de VALERIA - garbage collector cognitivo + defensa"
+  garbage_collection:
+    enabled: true
+    interval_seconds: 30
+    obsolete_context_ttl_seconds: 600
+  hallucination_detection:
+    enabled: true
+    sensitivity: 0.7
+  pruning:
+    enabled: true
+    low_utility_threshold: 0.15
+    prune_interval_seconds: 120
+  isolation:
+    enabled: true
+    quarantine_defective_modules: true
+
+# --- Glía Radial: Soporte Estructural y Reconfiguración ---
+glia_radial:
+  enabled: true
+  description: "Andamiaje para neurogénesis y reconfiguración estructural"
+  structural_support: true
+  guide_new_routes: true
+  deep_structural_learning: true
+  reconfiguration_cooldown_seconds: 60
