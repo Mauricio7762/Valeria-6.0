@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "valeria-6.0"
+version = "0.1.0"
+description = "VALERIA 6.0 - Sistema Biomimético Multimodal Completo (Cerebro Humano Digital)"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Proprietary"}
+authors = [
+    {name = "Mauricio", email = ""}
+]
+keywords = ["ai", "biomimetic", "multiagent", "glial", "metacognition", "neurogenesis"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+    "pydantic>=2.5",
+    "pydantic-settings>=2.1",
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0",
+    "loguru>=0.7",
+    "rich>=13.7",
+    "typer>=0.9",
+    "httpx>=0.26",
+    "redis>=5.0",
+    "chromadb>=0.4",
+    "numpy>=1.26",
+    "psutil>=5.9",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.1",
+    "ruff>=0.1",
+    "mypy>=1.8",
+    "pre-commit>=3.6",
+]
+dashboard = [
+    "streamlit>=1.30",
+    "plotly>=5.18",
+]
+api = [
+    "fastapi>=0.109",
+    "uvicorn[standard]>=0.27",
+    "websockets>=12.0",
+]
+full = [
+    "valeria-6.0[dev,dashboard,api]",
+]
+
+[project.scripts]
+valeria = "NUCLEO_BIOMIMETICO.orquestador_principal:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["NUCLEO_BIOMIMETICO*", "AGENTES_CORTICALES*", "SISTEMAS_AVANZADOS*", "UTILS*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["TESTS"]
+python_files = ["test_*.py"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
