@@ -43,7 +43,6 @@ class OrquestadorPrincipal:
 
     def _setup_logging(self) -> None:
         logger.remove()
-        # Logs a archivo (no saturar la terminal en modo chat)
         log_dir = ROOT / "LOGS"
         log_dir.mkdir(exist_ok=True)
         logger.add(
@@ -53,7 +52,6 @@ class OrquestadorPrincipal:
             level="DEBUG",
             encoding="utf-8",
         )
-        # Solo warnings/errores a stderr para no interrumpir el chat
         logger.add(sys.stderr, level="WARNING")
 
     def _setup_signals(self) -> None:
@@ -93,17 +91,14 @@ class OrquestadorPrincipal:
     async def inicializar(self) -> None:
         self._mostrar_banner()
         self.config = self._cargar_config()
-
         self.gestor_recursos = GestorRecursos(self.config.get("resources", {}))
         self.sistema_glial = SistemaGlial(self.config.get("sistema_glial", {}))
         self.coordinador = CoordinadorAgentes(self.config.get("agentes", {}))
-
         self.estado_consciencia = "despierto"
         self.running = True
         console.print("[bold green]✓ VALERIA despierta. Puedes hablarle.[/bold green]\n")
 
     async def _mantenimiento_background(self) -> None:
-        """Ciclos gliales + agentes en segundo plano mientras chateas."""
         intervalo = self.config.get("homeostasis", {}).get("check_interval_seconds", 5)
         while self.running:
             self._ciclo_count += 1
@@ -114,45 +109,27 @@ class OrquestadorPrincipal:
             await asyncio.sleep(intervalo)
 
     async def _procesar_mensaje_usuario(self, texto: str) -> str:
-        """Pasa el mensaje por los agentes y construye una respuesta."""
         if not self.coordinador:
             return "Sistema de agentes no disponible."
 
-        # 1. Percepción
-        perc = await self.coordinador.enviar("percepcion", {
-            "tipo": "texto",
-            "contenido": texto,
-        })
-
-        # 2. Emocional
-        emo = await self.coordinador.enviar("emocional", {
-            "contenido": texto,
-        })
-
-        # 3. Memoria (guardar episodio)
+        await self.coordinador.enviar("percepcion", {"tipo": "texto", "contenido": texto})
+        emo = await self.coordinador.enviar("emocional", {"contenido": texto})
         await self.coordinador.enviar("memoria", {
             "accion": "guardar_episodica",
             "contenido": texto,
             "meta": {"origen": "usuario", "emocional": emo.get("estado_afectivo")},
         })
+        razon = await self.coordinador.enviar("razonamiento", {"pregunta": texto})
 
-        # 4. Razonamiento
-        razon = await self.coordinador.enviar("razonamiento", {
-            "pregunta": texto,
-        })
-
-        # 5. Planificación (si parece un objetivo)
         if any(p in texto.lower() for p in ("quiero", "necesito", "objetivo", "plan", "hacer")):
             await self.coordinador.enviar("planificacion", {
                 "accion": "nuevo_objetivo",
                 "objetivo": texto,
             })
 
-        # Construir respuesta simple pero coherente
         estado = emo.get("estado_afectivo", "neutral")
         intensidad = emo.get("intensidad", 0.3)
         modulacion = emo.get("modulacion", "tono neutro")
-
         conclusion = razon.get("conclusion", "")
         pasos = razon.get("razonamiento", [])
 
@@ -164,7 +141,6 @@ class OrquestadorPrincipal:
         )
         for p in pasos:
             respuesta += f"- {p}\n"
-
         return respuesta
 
     async def _mostrar_estado_rapido(self) -> None:
@@ -173,22 +149,17 @@ class OrquestadorPrincipal:
         estados = self.coordinador.estado()
         emo = estados.get("emocional", {})
         mem = estados.get("memoria", {})
-        mon = estados.get("monitor", {})
-
         table = Table(title="Estado rápido", show_header=False)
         table.add_column("Campo", style="cyan")
         table.add_column("Valor")
         table.add_row("Consciencia", self.estado_consciencia)
         table.add_row("Ciclos background", str(self._ciclo_count))
-        table.add_row("Emoción", f"{emo.get('ultimo_resultado', '—')}")
-        table.add_row("Mensajes procesados (Memoria)", str(mem.get("mensajes_procesados", 0)))
+        table.add_row("Emoción", str(emo.get("ultimo_resultado", "—")))
+        table.add_row("Mensajes Memoria", str(mem.get("mensajes_procesados", 0)))
         console.print(table)
 
     async def bucle_chat(self) -> None:
-        """Loop principal de conversación."""
-        # Arrancar mantenimiento en background
         bg_task = asyncio.create_task(self._mantenimiento_background())
-
         try:
             while self.running:
                 try:
@@ -211,14 +182,12 @@ class OrquestadorPrincipal:
                     await self._mostrar_estado_rapido()
                     continue
 
-                # Procesar con los agentes
                 with console.status("[dim]VALERIA pensando...[/dim]"):
                     respuesta = await self._procesar_mensaje_usuario(texto)
 
                 console.print()
                 console.print(Panel(Markdown(respuesta), title="[bold green]VALERIA[/bold green]", border_style="green"))
                 console.print()
-
         finally:
             self.running = False
             bg_task.cancel()
