@@ -12,18 +12,26 @@ servicios externos. Persiste a un archivo JSON simple en disco.
 from __future__ import annotations
 
 import json
+import re
 import unicodedata
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+# Puntuación sobrante en los bordes de una palabra/frase (ej: "BocaJrs."
+# por la abreviatura "Jrs.", o "hola," con coma pegada). Se recorta para
+# que lo que se guarda y lo que se pregunta apunten al mismo nodo.
+_PUNTUACION_BORDE = re.compile(r'^[\s.,;:!¡¿?"\'\-]+|[\s.,;:!¡¿?"\'\-]+$')
+
 
 def normalizar(texto: str) -> str:
-    """minúsculas, sin tildes/diacríticos, espacios recortados — para que
-    'microglía' y 'microglia' (o 'MICROGLIA') apunten al mismo nodo."""
+    """minúsculas, sin tildes/diacríticos, sin puntuación en los bordes —
+    para que 'microglía'/'MICROGLIA' y 'BocaJrs.'/'bocajrs' apunten al
+    mismo nodo del grafo."""
     texto = texto.strip().lower()
     descompuesto = unicodedata.normalize("NFD", texto)
-    return "".join(c for c in descompuesto if unicodedata.category(c) != "Mn")
+    sin_tildes = "".join(c for c in descompuesto if unicodedata.category(c) != "Mn")
+    return _PUNTUACION_BORDE.sub("", sin_tildes)
 
 
 @dataclass(frozen=True)
