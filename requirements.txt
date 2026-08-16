@@ -1,0 +1,26 @@
+# VALERIA 6.0 - Dependencias
+# pip install -r requirements.txt
+
+# Core (obligatorio para chat / razonamiento)
+pydantic>=2.5
+pyyaml>=6.0
+python-dotenv>=1.0
+loguru>=0.7
+rich>=13.7
+psutil>=5.9
+
+# Tests
+pytest>=7.4
+pytest-asyncio>=0.23
+
+# UI (opcional)
+streamlit>=1.30
+
+# API (opcional)
+fastapi>=0.109
+uvicorn[standard]>=0.27
+
+# Opcional / futuro (no requerido en el modo actual)
+# redis>=5.0
+# chromadb>=0.4
+# numpy>=1.26
