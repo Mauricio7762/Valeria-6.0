@@ -22,6 +22,7 @@ _PATRONES: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"^\s*por qu[eé]\b"), "causal"),
     (re.compile(r"\bcausa(?:do)?\s+por\b|\bse debe a\b"), "causal"),
     (re.compile(r"^\s*qu[eé] es\b|^\s*qu[eé]\s+son\b"), "definicion"),
+    (re.compile(r"^\s*qui[eé]n(?:es)?\s+es\b|^\s*qui[eé]n(?:es)?\s+son\b"), "definicion"),
     (re.compile(r"^\s*c[oó]mo\b"), "procedimental"),
     (re.compile(r"^\s*(?:es|son)\b.+\?"), "verificacion"),
     (re.compile(r"\bdiferencia\b|\bcompar"), "comparacion"),
@@ -63,8 +64,11 @@ class AnalizadorPatrones:
         )
 
     def _extraer_entidad(self, texto_norm: str, intencion: str, palabras_clave: list[str]) -> str | None:
-        # Para "qué es X" / "qué es X?" la entidad es lo que sigue al patrón
-        m = re.search(r"qu[eé] es(?:\s+(?:un|una|el|la))?\s+([a-záéíóúñü\s]+?)[\?\.]?$", texto_norm)
+        # Para "qué es X" / "quién es X" la entidad es lo que sigue al patrón
+        m = re.search(
+            r"qu(?:[eé]|i[eé]n(?:es)?) (?:es|son)(?:\s+(?:un|una|el|la))?\s+([a-záéíóúñü\s]+?)[\?\.]?$",
+            texto_norm,
+        )
         if m:
             return m.group(1).strip()
 
