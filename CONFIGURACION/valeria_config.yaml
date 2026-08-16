@@ -1,0 +1,46 @@
+# ============================================
+# VALERIA 6.0 - Configuración Principal
+# ============================================
+
+system:
+  name: "VALERIA"
+  version: "6.0.0"
+  codename: "Cerebro Humano Digital"
+  environment: "development"          # development | staging | production
+  debug: true
+  log_level: "INFO"
+
+# Feature flags de capas (control de despliegue progresivo)
+layers:
+  layer_0_fundacion: true
+  layer_1_nucleo_glial: false
+  layer_2_agentes_corticales: false
+  layer_3_sistemas_avanzados: false
+  layer_4_multimodal_interfaces: false
+
+# Recursos y límites
+resources:
+  max_cpu_percent: 95
+  max_ram_percent: 90
+  max_gpu_percent: 90
+  soft_limit_warning: 85
+
+# Logging
+logging:
+  level: "INFO"
+  format: "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+  files:
+    system: "LOGS/valeria_system.log"
+    agentes: "LOGS/agentes.log"
+    glial: "LOGS/sistema_glial.log"
+    performance: "LOGS/performance.log"
+    seguridad: "LOGS/seguridad.log"
+  rotation: "10 MB"
+  retention: "30 days"
+
+# Homeostasis primaria
+homeostasis:
+  check_interval_seconds: 8
+  critical_cpu: 95
+  critical_ram: 90
+  auto_throttle: true
