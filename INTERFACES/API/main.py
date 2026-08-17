@@ -16,6 +16,9 @@ Arranque:
 
 from __future__ import annotations
 
+from NUCLEO_BIOMIMETICO.cargar_env import cargar_env
+cargar_env()
+
 from contextlib import asynccontextmanager
 from typing import Any
 
