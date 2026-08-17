@@ -21,6 +21,9 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from NUCLEO_BIOMIMETICO.cargar_env import cargar_env
+cargar_env()
+
 from NUCLEO_BIOMIMETICO.orquestador_principal import OrquestadorPrincipal
 from NUCLEO_BIOMIMETICO.chat_comandos import manejar_comando, AYUDA
 from NUCLEO_BIOMIMETICO.pipeline_mensaje import procesar_mensaje
