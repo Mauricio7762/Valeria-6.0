@@ -24,3 +24,8 @@ uvicorn[standard]>=0.27
 # redis>=5.0
 # chromadb>=0.4
 # numpy>=1.26
+
+# PDF RAG
+pypdf>=4.0
+# Visión opcional: pillow httpx
+# BLIP local opcional: transformers torch
