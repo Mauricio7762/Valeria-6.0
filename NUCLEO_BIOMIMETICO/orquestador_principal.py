@@ -21,6 +21,9 @@ from rich.markdown import Markdown
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
+from NUCLEO_BIOMIMETICO.cargar_env import cargar_env
+cargar_env()
+
 from NUCLEO_BIOMIMETICO.gestor_recursos import GestorRecursos
 from NUCLEO_BIOMIMETICO.SISTEMA_GLIAL.sistema_glial import SistemaGlial
 from NUCLEO_BIOMIMETICO.chat_comandos import AYUDA, manejar_comando
