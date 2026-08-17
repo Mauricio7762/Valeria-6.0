@@ -16,7 +16,11 @@ def _extraer_pypdf(datos: bytes) -> str:
         except ImportError:
             return ""
     import io
-    reader = PdfReader(io.BytesIO(datos))
+    try:
+        reader = PdfReader(io.BytesIO(datos))
+    except Exception:
+        # Archivo corrupto o que no es un PDF real: no romper la ingesta.
+        return ""
     partes = []
     for page in reader.pages:
         try:
