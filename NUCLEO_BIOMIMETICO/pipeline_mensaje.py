@@ -6,18 +6,73 @@ Percepción → memoria → plan meta → razonamiento → ajuste → curiosidad
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from typing import Any, TYPE_CHECKING
 
 from AGENTES_CORTICALES.razonamiento.grafo_conocimiento import normalizar
 from AGENTES_CORTICALES.razonamiento.puente_memoria import sugerir_promocion
 
+from pathlib import Path
+
+def _parece_pregunta_sobre_entrada(texto: str) -> bool:
+    t = (texto or "").lower()
+    claves = (
+        "qué es", "que es", "qué hay", "que hay", "de qué", "de que",
+        "describe", "describí", "describi", "imagen", "foto", "archivo",
+        "qué se ve", "que se ve", "qué muestra", "que muestra",
+        "caption", "contenido", "esa imagen", "esta imagen",
+    )
+    return any(k in t for k in claves)
+
+
+def _texto_contexto_mm(mm: dict) -> str:
+    tipo = mm.get("tipo") or "archivo"
+    caption = (mm.get("caption") or mm.get("transcripcion") or "").strip()
+    nombre = Path(str(mm.get("nombre") or "")).name
+    partes = [f"[Entrada multimodal reciente: {tipo}]"]
+    if nombre:
+        partes.append(f"Nombre: {nombre}")
+    if caption:
+        partes.append(f"Descripción: {caption}")
+    return "\n".join(partes)
+
+
+def _respuesta_desde_mm(mm: dict, pregunta: str) -> str:
+    caption = (mm.get("caption") or mm.get("transcripcion") or "").strip()
+    nombre = Path(str(mm.get("nombre") or "archivo")).name
+    fuente = mm.get("caption_fuente") or mm.get("provider") or ""
+    if not caption:
+        raw = (mm.get("texto_para_razonar") or mm.get("contenido") or "").strip()
+        low = raw.lower()
+        for pref in (
+            "descripción del usuario:",
+            "descripcion del usuario:",
+            "descripción:",
+            "descripcion:",
+        ):
+            if pref in low:
+                caption = raw[low.find(pref) + len(pref):].strip()
+                for stop in ("[imagen", "tipo=", "tamaño=", "tamano="):
+                    pos = caption.lower().find(stop)
+                    if pos > 0:
+                        caption = caption[:pos].strip()
+                break
+    if not caption:
+        return (
+            f"Recibí la imagen **{nombre}**, pero no tengo una descripción útil. "
+            "Subila de nuevo con una descripción o configurá la API de visión."
+        )
+    base = f"Sobre la imagen **{nombre}**: {caption}"
+    if fuente:
+        base += f"\n\n*Fuente: {fuente}*"
+    return base
+
+
 def _respuesta_desde_rag(hits: list, pregunta: str) -> str:
     if not hits:
         return ""
-    lineas = [
-        "Según los documentos que cargaste:",
-        "",
-    ]
+    lineas = ["Según los documentos que cargaste:", ""]
     for h in hits[:3]:
         frag = (h.get("texto") or "").strip()
         if not frag:
@@ -28,6 +83,7 @@ def _respuesta_desde_rag(hits: list, pregunta: str) -> str:
         lineas.append("")
     lineas.append(f"*Recuperado por RAG · {len(hits)} fragmento(s)*")
     return "\n".join(lineas).strip()
+
 
 
 if TYPE_CHECKING:
@@ -82,9 +138,13 @@ async def procesar_entrada(
     )
     texto = texto_razon
     rag_hits: list = []
+    tipo_perc = (percepcion or {}).get("tipo") if percepcion else None
+    mm_prev = getattr(orch, "_ultimo_mm", None) or {}
+    tipo_mm = tipo_perc or (mm_prev.get("tipo") if isinstance(mm_prev, dict) else None)
+    usar_rag = tipo_mm not in ("imagen", "audio")
     try:
         rag = getattr(orch, "rag", None)
-        if rag is not None and texto_razon:
+        if usar_rag and rag is not None and texto_razon:
             rec = rag.recuperar(texto_razon, top_k=5)
             rag_hits = list(rec.get("hits") or [])
             if rec.get("contexto"):
@@ -174,7 +234,15 @@ async def procesar_entrada(
     except (TypeError, ValueError):
         conf = 0.0
     sin_hechos = conf < 0.4 or "no tengo hechos" in (razon.get("conclusion") or "").lower()
-    if rag_hits and sin_hechos:
+    mm = getattr(orch, "_ultimo_mm", None) or {}
+    if percepcion:
+        mm = percepcion
+    es_img = isinstance(mm, dict) and mm.get("tipo") in ("imagen", "audio")
+    if es_img and (percepcion or _parece_pregunta_sobre_entrada(texto)):
+        alt = _respuesta_desde_mm(mm, texto_razon)
+        if alt:
+            respuesta = alt
+    elif rag_hits and sin_hechos:
         alt = _respuesta_desde_rag(rag_hits, texto_razon)
         if alt:
             respuesta = alt
