@@ -211,7 +211,21 @@ def main() -> None:
                     "modalidades": ["documento", "texto"],
                 }
                 motor = info.get("motor") or "?"
-                st.toast(f"PDF: +{n_new} chunks (total {n_tot}) · motor={motor}")
+                # Promover hechos del PDF → grafo
+                promo_msg = ""
+                try:
+                    raz = orch._agente("razonamiento")
+                    if raz is not None and hasattr(raz, "grafo") and n_tot > 0:
+                        pr = orch.rag.promover_a_grafo(raz.grafo)
+                        if pr.get("agregados"):
+                            promo_msg = f" · +{pr['agregados']} hechos al grafo"
+                            try:
+                                raz.grafo.guardar(raz._ruta_persistencia)
+                            except Exception:
+                                pass
+                except Exception:
+                    pass
+                st.toast(f"PDF: +{n_new} chunks (total {n_tot}) · motor={motor}{promo_msg}")
             else:
                 norm = NormalizadorEntrada()
                 dest = ROOT / "DATA" / "MEMORY" / "multimodal"
