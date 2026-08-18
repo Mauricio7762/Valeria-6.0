@@ -24,6 +24,7 @@ AYUDA = """
 - `/neurogenesis` — crecimiento, plasticidad y poda del grafo
 - `/holistico` — analiza el código del proyecto
 - `/rag` — estado de documentos PDF ingeridos
+- `/promover` — pasar fragmentos RAG a hechos del grafo
 - `/salir` — apagar
 
 **Uso**
@@ -64,6 +65,8 @@ async def manejar_comando(orch: "OrquestadorPrincipal", texto: str) -> str | Non
         return cmd_holistico(orch)
     if low in ("/rag", "/docs", "/documentos"):
         return cmd_rag(orch)
+    if low in ("/promover", "/promocion", "/aprender_docs"):
+        return cmd_promover(orch)
     if low == "/debug":
         orch._debug = not orch._debug
         return f"Debug **{'on' if orch._debug else 'off'}**."
@@ -167,6 +170,33 @@ async def cmd_memoria(orch: "OrquestadorPrincipal") -> str:
     for ep in (ctx.get("episodios_recientes") or [])[-5:]:
         c = str(ep.get("contenido", ""))[:80]
         lineas.append(f"- {c}")
+    return "\n".join(lineas)
+
+
+def cmd_promover(orch: "OrquestadorPrincipal") -> str:
+    rag = getattr(orch, "rag", None)
+    raz = orch._agente("razonamiento")
+    if rag is None or raz is None or not hasattr(raz, "grafo"):
+        return "RAG o razonamiento no disponible."
+    if rag.almacen.total() == 0:
+        return "No hay fragmentos RAG. Subí un PDF primero."
+    pr = rag.promover_a_grafo(raz.grafo)
+    try:
+        raz.grafo.guardar(raz._ruta_persistencia)
+    except Exception:
+        pass
+    lineas = [
+        "**Promoción RAG → grafo**",
+        f"- Intentos de extracción: **{pr.get('intentos', 0)}**",
+        f"- Hechos agregados: **{pr.get('agregados', 0)}**",
+    ]
+    for ej in pr.get("ejemplos") or []:
+        lineas.append(f"- `{ej}`")
+    if not pr.get("agregados"):
+        lineas.append(
+            "\nNo se extrajeron afirmaciones claras. "
+            "Los PDFs narrativos a veces no traen frases tipo «X es un Y»."
+        )
     return "\n".join(lineas)
 
 
