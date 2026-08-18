@@ -25,6 +25,7 @@ class OrquestadorRAG:
             "chunks_nuevos": n,
             "chunks_totales": self.almacen.total(),
             "chars_texto": sum(len(c.get("texto", "")) for c in chunks),
+            "motor": getattr(self.ingesta, "ultimo_motor", "desconocido"),
         }
 
     def recuperar(self, consulta: str, top_k: int = 4) -> dict[str, Any]:
