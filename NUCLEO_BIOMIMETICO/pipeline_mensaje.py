@@ -11,6 +11,25 @@ from typing import Any, TYPE_CHECKING
 from AGENTES_CORTICALES.razonamiento.grafo_conocimiento import normalizar
 from AGENTES_CORTICALES.razonamiento.puente_memoria import sugerir_promocion
 
+def _respuesta_desde_rag(hits: list, pregunta: str) -> str:
+    if not hits:
+        return ""
+    lineas = [
+        "Según los documentos que cargaste:",
+        "",
+    ]
+    for h in hits[:3]:
+        frag = (h.get("texto") or "").strip()
+        if not frag:
+            continue
+        fuente = h.get("fuente") or "documento"
+        lineas.append(f"**({fuente})**")
+        lineas.append(frag[:700])
+        lineas.append("")
+    lineas.append(f"*Recuperado por RAG · {len(hits)} fragmento(s)*")
+    return "\n".join(lineas).strip()
+
+
 if TYPE_CHECKING:
     from NUCLEO_BIOMIMETICO.orquestador_principal import OrquestadorPrincipal
 
@@ -51,16 +70,16 @@ async def procesar_entrada(
         },
     )
     texto = texto_razon
-
-    # RAG: enriquecer con fragmentos de PDFs ingeridos
+    rag_hits: list = []
     try:
         rag = getattr(orch, "rag", None)
-        if rag is not None and texto:
-            ctx = rag.recuperar(texto, top_k=3)
-            if ctx.get("contexto"):
-                texto = ctx["contexto"] + "\n\n[Pregunta]\n" + texto
+        if rag is not None and texto_razon:
+            rec = rag.recuperar(texto_razon, top_k=5)
+            rag_hits = list(rec.get("hits") or [])
+            if rec.get("contexto"):
+                texto = rec["contexto"] + "\n\n[Pregunta]\n" + texto_razon
     except Exception:
-        pass
+        rag_hits = []
 
     ctx = await orch.coordinador.enviar("memoria", {"accion": "recuperar", "clave": texto})
 
@@ -137,6 +156,17 @@ async def procesar_entrada(
         evaluacion["calidad"] = evaluacion.get("calidad") or "insuficiente"
 
     respuesta = formatear_respuesta(orch, razon, emo, evaluacion, ctx)
+
+    # Si el grafo no sabe pero hay RAG, responder con los fragmentos
+    try:
+        conf = float(razon.get("confianza") or 0)
+    except (TypeError, ValueError):
+        conf = 0.0
+    sin_hechos = conf < 0.4 or "no tengo hechos" in (razon.get("conclusion") or "").lower()
+    if rag_hits and sin_hechos:
+        alt = _respuesta_desde_rag(rag_hits, texto_razon)
+        if alt:
+            respuesta = alt
 
     await orch.coordinador.enviar(
         "memoria",
