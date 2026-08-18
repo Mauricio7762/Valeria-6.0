@@ -21,9 +21,6 @@ ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from NUCLEO_BIOMIMETICO.cargar_env import cargar_env
-cargar_env()
-
 from NUCLEO_BIOMIMETICO.orquestador_principal import OrquestadorPrincipal
 from NUCLEO_BIOMIMETICO.chat_comandos import manejar_comando, AYUDA
 from NUCLEO_BIOMIMETICO.pipeline_mensaje import procesar_mensaje
@@ -160,18 +157,32 @@ def main() -> None:
             if name.lower().endswith(".pdf"):
                 info = orch.rag.ingerir_pdf(data, nombre=name)
                 st.session_state.pending_cmd = None
+                n_new = int(info.get("chunks_nuevos") or 0)
+                n_tot = int(info.get("chunks_totales") or 0)
+                if n_new == 0 and n_tot == 0:
+                    msg = (
+                        f"No pude extraer texto de «{name}». "
+                        "¿Es un PDF escaneado (solo imagen) o está vacío? "
+                        "Probá un PDF con texto seleccionable o instalá `pypdf`."
+                    )
+                elif n_new == 0:
+                    msg = (
+                        f"«{name}» no aportó fragmentos nuevos "
+                        f"(ya había {n_tot} en total). Preguntame igual sobre el contenido."
+                    )
+                else:
+                    msg = (
+                        f"He ingerido el PDF «{name}»: "
+                        f"**{n_new}** fragmentos nuevos, **{n_tot}** en total. "
+                        "Preguntame sobre el contenido (ej. «¿de qué trata el documento?»)."
+                    )
                 st.session_state.pending_multimodal = {
                     "tipo": "texto",
-                    "texto_para_razonar": (
-                        f"He ingerido el PDF «{name}»: "
-                        f"{info['chunks_nuevos']} fragmentos nuevos, "
-                        f"{info['chunks_totales']} en total. "
-                        f"Preguntame sobre el contenido del documento."
-                    ),
+                    "texto_para_razonar": msg,
                     "contenido": name,
                     "modalidades": ["documento", "texto"],
                 }
-                st.toast(f"PDF ingerido: {info['chunks_nuevos']} chunks")
+                st.toast(f"PDF: +{n_new} chunks (total {n_tot})")
             else:
                 norm = NormalizadorEntrada()
                 dest = ROOT / "DATA" / "MEMORY" / "multimodal"
