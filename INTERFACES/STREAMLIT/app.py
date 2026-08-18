@@ -28,6 +28,11 @@ from NUCLEO_BIOMIMETICO.gestor_recursos import GestorRecursos
 from NUCLEO_BIOMIMETICO.SISTEMA_GLIAL.sistema_glial import SistemaGlial
 from AGENTES_CORTICALES.coordinador_agentes import CoordinadorAgentes
 from PROCESAMIENTO_MULTIMODAL.normalizador_entrada import NormalizadorEntrada
+from PROCESAMIENTO_MULTIMODAL.deps_auto import (
+    asegurar_deps_pdf,
+    asegurar_deps_imagen,
+    asegurar_deps_audio,
+)
 from NUCLEO_BIOMIMETICO.pipeline_mensaje import procesar_entrada
 
 HISTORIAL_PATH = ROOT / "DATA" / "MEMORY" / "episodica" / "chat_ui.json"
@@ -154,7 +159,30 @@ def main() -> None:
         if up is not None and st.button("Enviar archivo", use_container_width=True):
             data = up.getvalue()
             name = up.name or "archivo"
-            if name.lower().endswith(".pdf"):
+            low = name.lower()
+
+            # Instalar deps mínimas según tipo de archivo
+            if low.endswith(".pdf"):
+                with st.spinner("Preparando herramientas para PDF…"):
+                    dep = asegurar_deps_pdf()
+                if dep.get("instalados"):
+                    st.info(dep.get("mensaje") or "Dependencias PDF listas")
+                if not dep.get("ok"):
+                    st.warning(f"No pude instalar todo para PDF: {dep.get('mensaje')}")
+            elif low.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif", ".bmp")):
+                with st.spinner("Preparando herramientas para imagen…"):
+                    dep = asegurar_deps_imagen()
+                if dep.get("instalados"):
+                    st.info(dep.get("mensaje") or "Dependencias imagen listas")
+                if not dep.get("ok"):
+                    st.warning(f"No pude instalar todo para imagen: {dep.get('mensaje')}")
+            elif low.endswith((".wav", ".mp3", ".ogg", ".m4a")):
+                with st.spinner("Preparando herramientas para audio…"):
+                    dep = asegurar_deps_audio()
+                if not dep.get("ok"):
+                    st.warning(dep.get("mensaje") or "Audio: deps incompletas")
+
+            if low.endswith(".pdf"):
                 info = orch.rag.ingerir_pdf(data, nombre=name)
                 st.session_state.pending_cmd = None
                 n_new = int(info.get("chunks_nuevos") or 0)
@@ -173,7 +201,7 @@ def main() -> None:
                 else:
                     msg = (
                         f"He ingerido el PDF «{name}»: "
-                        f"**{n_new}** fragmentos nuevos, **{n_tot}** en total (extractor: {info.get(\"motor\") or \"?\"}) . "
+                        f"**{n_new}** fragmentos nuevos, **{n_tot}** en total (extractor: {info.get('motor') or '?'}). "
                         "Preguntame sobre el contenido (ej. «¿de qué trata el documento?»)."
                     )
                 st.session_state.pending_multimodal = {
