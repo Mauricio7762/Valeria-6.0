@@ -8,6 +8,7 @@ from typing import Any
 from .almacen_chunks import AlmacenChunks
 from .ingesta_pdf import IngestaPDF
 from .retriever import RetrieverRAG
+from .promocion_grafo import promover_chunks_a_grafo
 
 
 class OrquestadorRAG:
@@ -27,6 +28,11 @@ class OrquestadorRAG:
             "chars_texto": sum(len(c.get("texto", "")) for c in chunks),
             "motor": getattr(self.ingesta, "ultimo_motor", "desconocido"),
         }
+
+    def promover_a_grafo(self, grafo: Any, chunks: list[dict] | None = None) -> dict[str, Any]:
+        """Extrae hechos de chunks (o de todo el almacén) hacia el grafo."""
+        data = chunks if chunks is not None else list(self.almacen.chunks)
+        return promover_chunks_a_grafo(grafo, data)
 
     def recuperar(self, consulta: str, top_k: int = 4) -> dict[str, Any]:
         hits = self.retriever.buscar(consulta, top_k=top_k)
