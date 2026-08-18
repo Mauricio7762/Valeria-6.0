@@ -218,7 +218,11 @@ def main() -> None:
                 with st.spinner("Analizando archivo (visión si hay API/modelo)…"):
                     perc = norm.desde_upload(name, data, caption=caption or None, guardar_en=dest)
                 st.session_state.pending_multimodal = perc
+                st.session_state.last_mm = perc
                 st.session_state.pending_cmd = None
+                cap = (perc or {}).get("caption") or ""
+                if cap:
+                    st.caption("Caption: " + cap[:240])
 
         st.divider()
         st.subheader("Atajos")
@@ -300,8 +304,12 @@ def main() -> None:
         with st.spinner("Pensando…"):
             try:
                 if multimodal:
+                    orch._ultimo_mm = multimodal
+                    st.session_state.last_mm = multimodal
                     respuesta = _run(procesar_entrada(orch, user_text, percepcion=multimodal))
                 else:
+                    if st.session_state.get("last_mm"):
+                        orch._ultimo_mm = st.session_state.last_mm
                     cmd = _run(manejar_comando(orch, user_text))
                     if cmd is not None:
                         respuesta = cmd if cmd else "_(sin salida)_"
