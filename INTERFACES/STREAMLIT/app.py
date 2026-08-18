@@ -173,7 +173,7 @@ def main() -> None:
                 else:
                     msg = (
                         f"He ingerido el PDF «{name}»: "
-                        f"**{n_new}** fragmentos nuevos, **{n_tot}** en total. "
+                        f"**{n_new}** fragmentos nuevos, **{n_tot}** en total (extractor: {info.get(\"motor\") or \"?\"}) . "
                         "Preguntame sobre el contenido (ej. «¿de qué trata el documento?»)."
                     )
                 st.session_state.pending_multimodal = {
@@ -182,7 +182,8 @@ def main() -> None:
                     "contenido": name,
                     "modalidades": ["documento", "texto"],
                 }
-                st.toast(f"PDF: +{n_new} chunks (total {n_tot})")
+                motor = info.get("motor") or "?"
+                st.toast(f"PDF: +{n_new} chunks (total {n_tot}) · motor={motor}")
             else:
                 norm = NormalizadorEntrada()
                 dest = ROOT / "DATA" / "MEMORY" / "multimodal"
