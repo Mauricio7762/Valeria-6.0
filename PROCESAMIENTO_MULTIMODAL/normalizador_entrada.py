@@ -42,21 +42,14 @@ class NormalizadorEntrada:
         mime: str | None = None,
     ) -> dict[str, Any]:
         mime = mime or mimetypes.guess_type(nombre)[0] or "image/unknown"
-        partes = [
-            f"[Imagen recibida: {nombre}]",
-            f"tipo={mime}",
-            f"tamaño={tamaño_bytes} bytes",
-        ]
-        if ruta:
-            partes.append(f"ruta={ruta}")
+        nombre_limpio = Path(str(nombre)).name
         if caption:
-            partes.append(f"descripción del usuario: {caption}")
+            texto = f"descripción del usuario: {caption}"
         else:
-            partes.append(
-                "sin descripción visual automática aún "
-                "(Capa 4: se puede conectar CLIP/visión más adelante)"
+            texto = (
+                f"[Imagen recibida: {nombre_limpio}] tipo={mime} "
+                f"tamaño={tamaño_bytes} bytes (sin descripción aún)"
             )
-        texto = " ".join(partes)
         return {
             "tipo": "imagen",
             "contenido": caption or nombre,
