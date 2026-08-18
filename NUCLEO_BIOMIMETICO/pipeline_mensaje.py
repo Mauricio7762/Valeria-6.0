@@ -52,9 +52,20 @@ async def procesar_entrada(
             {"percepcion_normalizada": percepcion, "tipo": percepcion.get("tipo", "texto")},
         )
         texto_razon = str(percepcion.get("texto_para_razonar") or texto)
+        # Recordar última entrada multimodal para preguntas siguientes
+        try:
+            orch._ultimo_mm = dict(percepcion)
+        except Exception:
+            pass
     else:
         await orch.coordinador.enviar("percepcion", {"tipo": "texto", "contenido": texto})
         texto_razon = texto
+        # Si pregunta sobre imagen/archivo reciente, inyectar contexto multimodal
+        mm = getattr(orch, "_ultimo_mm", None) or {}
+        if mm and _parece_pregunta_sobre_entrada(texto):
+            ctx_mm = _texto_contexto_mm(mm)
+            if ctx_mm:
+                texto_razon = ctx_mm + "\n\n[Pregunta del usuario]\n" + texto
 
     emo = await orch.coordinador.enviar("emocional", {"contenido": texto_razon})
     await orch.coordinador.enviar(
@@ -167,6 +178,20 @@ async def procesar_entrada(
         alt = _respuesta_desde_rag(rag_hits, texto_razon)
         if alt:
             respuesta = alt
+    elif sin_hechos:
+        mm = getattr(orch, "_ultimo_mm", None) or {}
+        if mm:
+            # respuesta directa desde caption/descripción de la última imagen/audio
+            alt = _respuesta_desde_mm(mm, texto_razon)
+            if alt and (
+                percepcion
+                or _parece_pregunta_sobre_entrada(texto)
+                or (mm.get("caption") or mm.get("texto_para_razonar"))
+            ):
+                # Evitar forzar MM en cualquier pregunta: solo si parece sobre la entrada
+                # o acabamos de recibir percepcion multimodal
+                if percepcion or _parece_pregunta_sobre_entrada(texto):
+                    respuesta = alt
 
     await orch.coordinador.enviar(
         "memoria",
