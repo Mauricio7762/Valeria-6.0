@@ -232,6 +232,8 @@ def main() -> None:
                 with st.spinner("Analizando archivo (visión si hay API/modelo)…"):
                     perc = norm.desde_upload(name, data, caption=caption or None, guardar_en=dest)
                 st.session_state.pending_multimodal = perc
+                if getattr(orch, "mem_mm", None):
+                    orch.mem_mm.registrar(perc)
                 st.session_state.last_mm = perc
                 st.session_state.pending_cmd = None
                 cap = (perc or {}).get("caption") or ""
@@ -319,6 +321,8 @@ def main() -> None:
             try:
                 if multimodal:
                     orch._ultimo_mm = multimodal
+                    if getattr(orch, "mem_mm", None):
+                        orch.mem_mm.registrar(multimodal)
                     st.session_state.last_mm = multimodal
                     respuesta = _run(procesar_entrada(orch, user_text, percepcion=multimodal))
                 else:
