@@ -65,6 +65,8 @@ async def manejar_comando(orch: "OrquestadorPrincipal", texto: str) -> str | Non
         return cmd_holistico(orch)
     if low in ("/rag", "/docs", "/documentos"):
         return cmd_rag(orch)
+    if low in ("/mm", "/imagenes", "/multimodal"):
+        return cmd_mm(orch)
     if low in ("/promover", "/promocion", "/aprender_docs"):
         return cmd_promover(orch)
     if low == "/debug":
@@ -198,6 +200,13 @@ def cmd_promover(orch: "OrquestadorPrincipal") -> str:
             "Los PDFs narrativos a veces no traen frases tipo «X es un Y»."
         )
     return "\n".join(lineas)
+
+
+def cmd_mm(orch: "OrquestadorPrincipal") -> str:
+    mem = getattr(orch, "mem_mm", None)
+    if mem is None:
+        return "Memoria multimodal no disponible."
+    return mem.listar()
 
 
 def cmd_rag(orch: "OrquestadorPrincipal") -> str:

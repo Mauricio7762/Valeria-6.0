@@ -15,6 +15,41 @@ from AGENTES_CORTICALES.razonamiento.puente_memoria import sugerir_promocion
 
 from pathlib import Path
 
+
+def _resolver_mm(orch, texto: str) -> dict:
+    mem = getattr(orch, "mem_mm", None)
+    if mem is not None:
+        hit = mem.buscar_por_nombre(texto)
+        if hit is not None:
+            return {
+                "tipo": hit.tipo,
+                "nombre": hit.nombre,
+                "caption": hit.caption,
+                "texto_para_razonar": hit.texto,
+                "contenido": hit.caption or hit.texto,
+            }
+        if _parece_pregunta_sobre_entrada(texto):
+            u = mem.ultima()
+            if u is not None:
+                return {
+                    "tipo": u.tipo,
+                    "nombre": u.nombre,
+                    "caption": u.caption,
+                    "texto_para_razonar": u.texto,
+                    "contenido": u.caption or u.texto,
+                }
+    return dict(getattr(orch, "_ultimo_mm", None) or {})
+
+
+def _parece_pregunta_sobre_documento(texto: str) -> bool:
+    t = (texto or "").lower()
+    claves = (
+        "documento", "pdf", "archivo", "texto del", "según el", "segun el",
+        "de qué trata", "de que trata", "qué dice", "que dice",
+        "en el documento", "en el pdf", "resum",
+    )
+    return any(k in t for k in claves)
+
 def _parece_pregunta_sobre_entrada(texto: str) -> bool:
     t = (texto or "").lower()
     claves = (
@@ -111,13 +146,16 @@ async def procesar_entrada(
         # Recordar última entrada multimodal para preguntas siguientes
         try:
             orch._ultimo_mm = dict(percepcion)
+            _mem = getattr(orch, "mem_mm", None)
+            if _mem is not None:
+                _mem.registrar(percepcion)
         except Exception:
             pass
     else:
         await orch.coordinador.enviar("percepcion", {"tipo": "texto", "contenido": texto})
         texto_razon = texto
         # Si pregunta sobre imagen/archivo reciente, inyectar contexto multimodal
-        mm = getattr(orch, "_ultimo_mm", None) or {}
+        mm = _resolver_mm(orch, texto)
         if mm and _parece_pregunta_sobre_entrada(texto):
             ctx_mm = _texto_contexto_mm(mm)
             if ctx_mm:
@@ -139,9 +177,7 @@ async def procesar_entrada(
     texto = texto_razon
     rag_hits: list = []
     tipo_perc = (percepcion or {}).get("tipo") if percepcion else None
-    mm_prev = getattr(orch, "_ultimo_mm", None) or {}
-    tipo_mm = tipo_perc or (mm_prev.get("tipo") if isinstance(mm_prev, dict) else None)
-    usar_rag = tipo_mm not in ("imagen", "audio")
+    usar_rag = tipo_perc not in ("imagen", "audio")
     try:
         rag = getattr(orch, "rag", None)
         if usar_rag and rag is not None and texto_razon:
@@ -234,32 +270,18 @@ async def procesar_entrada(
     except (TypeError, ValueError):
         conf = 0.0
     sin_hechos = conf < 0.4 or "no tengo hechos" in (razon.get("conclusion") or "").lower()
-    mm = getattr(orch, "_ultimo_mm", None) or {}
-    if percepcion:
-        mm = percepcion
-    es_img = isinstance(mm, dict) and mm.get("tipo") in ("imagen", "audio")
-    if es_img and (percepcion or _parece_pregunta_sobre_entrada(texto)):
-        alt = _respuesta_desde_mm(mm, texto_razon)
-        if alt:
-            respuesta = alt
-    elif rag_hits and sin_hechos:
+
+    if rag_hits and (sin_hechos or _parece_pregunta_sobre_documento(texto)):
         alt = _respuesta_desde_rag(rag_hits, texto_razon)
         if alt:
             respuesta = alt
-    elif sin_hechos:
-        mm = getattr(orch, "_ultimo_mm", None) or {}
-        if mm:
-            # respuesta directa desde caption/descripción de la última imagen/audio
+    else:
+        mm = percepcion if percepcion else _resolver_mm(orch, texto)
+        es_img = isinstance(mm, dict) and mm.get("tipo") in ("imagen", "audio")
+        if es_img and (percepcion or _parece_pregunta_sobre_entrada(texto)):
             alt = _respuesta_desde_mm(mm, texto_razon)
-            if alt and (
-                percepcion
-                or _parece_pregunta_sobre_entrada(texto)
-                or (mm.get("caption") or mm.get("texto_para_razonar"))
-            ):
-                # Evitar forzar MM en cualquier pregunta: solo si parece sobre la entrada
-                # o acabamos de recibir percepcion multimodal
-                if percepcion or _parece_pregunta_sobre_entrada(texto):
-                    respuesta = alt
+            if alt:
+                respuesta = alt
 
     await orch.coordinador.enviar(
         "memoria",

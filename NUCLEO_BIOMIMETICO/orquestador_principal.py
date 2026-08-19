@@ -40,6 +40,7 @@ from SISTEMAS_AVANZADOS.METACOGNICION import (
 from SISTEMAS_AVANZADOS.CURIOSIDAD_COMPUTACIONAL import ExploradorAutonomo
 from SISTEMAS_AVANZADOS.NEUROGENESIS_ARTIFICIAL import CoordinadorNeurogenesis
 from SISTEMAS_AVANZADOS.ANALIZADOR_HOLISTICO_CODIGO import OrquestadorHolistico
+from NUCLEO_BIOMIMETICO.memoria_multimodal import MemoriaMultimodal
 from SISTEMAS_AVANZADOS.RAG.orquestador_rag import OrquestadorRAG
 
 console = Console()
@@ -62,6 +63,7 @@ class OrquestadorPrincipal:
         self.neurogenesis = CoordinadorNeurogenesis()
         self.holistico = OrquestadorHolistico(ROOT)
         self.rag = OrquestadorRAG()
+        self.mem_mm = MemoriaMultimodal()
         self._ciclo_count = 0
         self._debug = False
         self._ultimo_plan = None
