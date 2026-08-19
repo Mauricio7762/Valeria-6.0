@@ -25,6 +25,7 @@ AYUDA = """
 - `/holistico` — analiza el código del proyecto
 - `/rag` — estado de documentos PDF ingeridos
 - `/promover` — pasar fragmentos RAG a hechos del grafo
+- `/capas` — qué capas (0-4) están activas ahora
 - `/salir` — apagar
 
 **Uso**
@@ -69,6 +70,8 @@ async def manejar_comando(orch: "OrquestadorPrincipal", texto: str) -> str | Non
         return cmd_mm(orch)
     if low in ("/promover", "/promocion", "/aprender_docs"):
         return cmd_promover(orch)
+    if low in ("/capas", "/layers"):
+        return cmd_capas(orch)
     if low == "/debug":
         orch._debug = not orch._debug
         return f"Debug **{'on' if orch._debug else 'off'}**."
@@ -226,6 +229,11 @@ def cmd_rag(orch: "OrquestadorPrincipal") -> str:
 
 
 def cmd_holistico(orch: "OrquestadorPrincipal") -> str:
+    if getattr(orch, "holistico", None) is None:
+        return (
+            "Analizador holístico desactivado (Capa 3 apagada). "
+            "Activalo con `LAYER_3_ENABLED=true` en tu `.env` o en `valeria_config.yaml`."
+        )
     informe = orch.holistico.analizar()
     return orch.holistico.informe_markdown(informe)
 
@@ -314,6 +322,18 @@ def cmd_reflexion(orch: "OrquestadorPrincipal") -> str:
         orch.meta_monitor, orch.meta_ajuste, grafo_est, mem_est
     )
     return out["texto"]
+
+
+def cmd_capas(orch: "OrquestadorPrincipal") -> str:
+    from NUCLEO_BIOMIMETICO.config_capas import resumen_capas
+
+    layers = getattr(orch, "layers", None)
+    if not layers:
+        return "No se pudieron resolver las capas."
+    lineas = ["**Capas**", "", resumen_capas(layers)]
+    if not layers.get(2, True):
+        lineas.append("\n⚠️ Capa 2 apagada: el chat no puede razonar (agentes corticales off).")
+    return "\n".join(lineas)
 
 
 def cmd_plan(orch: "OrquestadorPrincipal") -> str:
