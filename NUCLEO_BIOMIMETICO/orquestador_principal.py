@@ -24,6 +24,7 @@ sys.path.insert(0, str(ROOT))
 from NUCLEO_BIOMIMETICO.cargar_env import cargar_env
 cargar_env()
 
+from NUCLEO_BIOMIMETICO.config_capas import resolver_capas, resumen_capas
 from NUCLEO_BIOMIMETICO.gestor_recursos import GestorRecursos
 from NUCLEO_BIOMIMETICO.SISTEMA_GLIAL.sistema_glial import SistemaGlial
 from NUCLEO_BIOMIMETICO.chat_comandos import AYUDA, manejar_comando
@@ -50,7 +51,8 @@ class OrquestadorPrincipal:
     def __init__(self) -> None:
         self.running = False
         self.estado_consciencia = "apagado"
-        self.config: dict[str, Any] = {}
+        self.config: dict[str, Any] = self._cargar_config()
+        self.layers: dict[int, bool] = resolver_capas(self.config)
         self.gestor_recursos: GestorRecursos | None = None
         self.sistema_glial: SistemaGlial | None = None
         self.coordinador: CoordinadorAgentes | None = None
@@ -61,9 +63,9 @@ class OrquestadorPrincipal:
         self.meta_reflexion = AutorreflexionMetacognitiva()
         self.curiosidad = ExploradorAutonomo()
         self.neurogenesis = CoordinadorNeurogenesis()
-        self.holistico = OrquestadorHolistico(ROOT)
-        self.rag = OrquestadorRAG()
-        self.mem_mm = MemoriaMultimodal()
+        self.holistico = OrquestadorHolistico(ROOT) if self.layers.get(3, True) else None
+        self.rag = OrquestadorRAG() if self.layers.get(4, True) else None
+        self.mem_mm = MemoriaMultimodal() if self.layers.get(4, True) else None
         self._ciclo_count = 0
         self._debug = False
         self._ultimo_plan = None
@@ -122,11 +124,17 @@ class OrquestadorPrincipal:
                 padding=(1, 4),
             )
         )
-        self.config = self._cargar_config()
+        apagadas = [n for n, on in self.layers.items() if not on]
+        if apagadas:
+            console.print(f"[yellow]Capas desactivadas: {apagadas}[/yellow]")
         self.gestor_recursos = GestorRecursos(self.config.get("resources", {}))
-        self.sistema_glial = SistemaGlial(self.config.get("sistema_glial", {}))
-        self.coordinador = CoordinadorAgentes(self.config.get("agentes", {}))
-        raz0 = self.coordinador.agentes.get("razonamiento")
+        self.sistema_glial = (
+            SistemaGlial(self.config.get("sistema_glial", {})) if self.layers.get(1, True) else None
+        )
+        self.coordinador = (
+            CoordinadorAgentes(self.config.get("agentes", {})) if self.layers.get(2, True) else None
+        )
+        raz0 = self.coordinador.agentes.get("razonamiento") if self.coordinador else None
         if raz0 is not None:
             raz0.neurogenesis = self.neurogenesis
         self.estado_consciencia = "despierto"
@@ -154,7 +162,7 @@ class OrquestadorPrincipal:
                 await self.sistema_glial.tick()
             if self.coordinador:
                 await self.coordinador.tick()
-                if self._ciclo_count % 5 == 0:
+                if self._ciclo_count % 5 == 0 and self.layers.get(3, True):
                     raz = self.coordinador.agentes.get("razonamiento")
                     mic = getattr(self.sistema_glial, "microglia", None) if self.sistema_glial else None
                     if raz is not None and hasattr(raz, "grafo"):
