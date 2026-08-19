@@ -10,13 +10,15 @@ system:
   debug: true
   log_level: "INFO"
 
-# Feature flags de capas (control de despliegue progresivo)
+# Feature flags de capas (control de despliegue progresivo).
+# LAYER_N_ENABLED en .env tiene prioridad sobre estos valores si está
+# definida — ver NUCLEO_BIOMIMETICO/config_capas.py.
 layers:
   layer_0_fundacion: true
-  layer_1_nucleo_glial: false
-  layer_2_agentes_corticales: false
-  layer_3_sistemas_avanzados: false
-  layer_4_multimodal_interfaces: false
+  layer_1_nucleo_glial: true
+  layer_2_agentes_corticales: true
+  layer_3_sistemas_avanzados: true
+  layer_4_multimodal_interfaces: true
 
 # Recursos y límites
 resources:
