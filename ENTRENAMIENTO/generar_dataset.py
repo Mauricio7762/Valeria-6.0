@@ -19,8 +19,8 @@ import random
 import sys
 from pathlib import Path
 
-# Ajustá esta ruta si tu carpeta se llama distinto
-REPO_ROOT = Path(__file__).resolve().parent / "Valeria-6.0-main"
+# Ahora (el script vive en ENTRENAMIENTO/, la raíz del repo es un nivel arriba):
+REPO_ROOT = Path(__file__).resolve().parent.parent
 STUBS = Path(__file__).resolve().parent / "stubs"
 sys.path.insert(0, str(STUBS))  # stub de loguru (no disponible sin red)
 sys.path.insert(0, str(REPO_ROOT))
