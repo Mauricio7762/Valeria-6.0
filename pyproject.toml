@@ -54,8 +54,14 @@ api = [
     "uvicorn[standard]>=0.27",
     "websockets>=12.0",
 ]
+llm = [
+    "torch>=2.1",
+    "transformers>=4.40",
+    "peft>=0.11",
+    "accelerate>=0.27",
+]
 full = [
-    "valeria-6.0[dev,dashboard,api]",
+    "valeria-6.0[dev,dashboard,api,llm]",
 ]
 
 [project.scripts]

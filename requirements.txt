@@ -29,3 +29,11 @@ uvicorn[standard]>=0.27
 pypdf>=4.0
 # Visión opcional: pillow httpx
 # BLIP local opcional: transformers torch
+
+# LLM LoRA (opcional — respaldo neural)
+# torch: instalá la build adecuada para tu GPU/CPU desde https://pytorch.org
+torch>=2.1
+transformers>=4.40
+peft>=0.11
+accelerate>=0.27
+# bitsandbytes>=0.43  # solo si usás cuantización 4/8-bit en GPU
