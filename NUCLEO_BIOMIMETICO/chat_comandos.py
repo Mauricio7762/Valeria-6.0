@@ -26,6 +26,8 @@ AYUDA = """
 - `/rag` — estado de documentos PDF ingeridos
 - `/promover` — pasar fragmentos RAG a hechos del grafo
 - `/capas` — qué capas (0-4) están activas ahora
+- `/lora` — estado del modelo LoRA (neural)
+- `/lora v4` — cambiar adapter (v1|v2|v3|v4) y recargar
 - `/salir` — apagar
 
 **Uso**
@@ -70,6 +72,9 @@ async def manejar_comando(orch: "OrquestadorPrincipal", texto: str) -> str | Non
         return cmd_mm(orch)
     if low in ("/promover", "/promocion", "/aprender_docs"):
         return cmd_promover(orch)
+    if low == "/lora" or low.startswith("/lora "):
+        return await cmd_lora(orch, raw)
+
     if low in ("/capas", "/layers"):
         return cmd_capas(orch)
     if low == "/debug":
@@ -347,3 +352,59 @@ def cmd_plan(orch: "OrquestadorPrincipal") -> str:
         f"- Estrategias: **{' → '.join(p.estrategias)}**\n"
         f"- Motivo: {p.motivo}"
     )
+
+
+async def cmd_lora(orch: "OrquestadorPrincipal", raw: str) -> str:
+    """Estado del LoRA o cambio de adapter: /lora | /lora v3 | /lora load"""
+    from NUCLEO_BIOMIMETICO.llm_lora import get_llm
+
+    llm = getattr(orch, "llm", None) or get_llm()
+    parts = raw.strip().split()
+    arg = parts[1].lower() if len(parts) > 1 else None
+
+    if arg in ("v1", "v2", "v3", "v4", "latest"):
+        ok = llm.cargar(adapter=arg, force=True)
+        est = llm.estado()
+        if ok:
+            return (
+                f"**LoRA cargado**\n"
+                f"- Adapter: `{est.get('adapter')}`\n"
+                f"- Device: `{est.get('device')}`\n"
+                f"- Base: `{est.get('base_model')}`"
+            )
+        return (
+            f"**No se pudo cargar** `{arg}`\n\n"
+            f"{est.get('error') or 'error desconocido'}"
+        )
+
+    if arg in ("load", "cargar", "preload"):
+        ok = llm.cargar(force=True)
+        est = llm.estado()
+        if ok:
+            return f"**LoRA listo** · `{est.get('adapter')}` en `{est.get('device')}`"
+        return f"**Fallo al cargar**\n\n{est.get('error')}"
+
+    if arg in ("off", "disable", "0"):
+        llm.configurar(enabled=False)
+        return "LoRA **deshabilitado** (solo simbólico / RAG)."
+
+    if arg in ("on", "enable", "1"):
+        llm.configurar(enabled=True)
+        return "LoRA **habilitado** (se usará cuando el grafo no sepa)."
+
+    est = llm.estado()
+    lineas = [
+        "**LLM LoRA (respaldo neural)**",
+        f"- Habilitado: `{est.get('enabled')}`",
+        f"- Cargado: `{est.get('loaded')}`",
+        f"- Adapter: `{est.get('adapter') or '—'}`",
+        f"- Base: `{est.get('base_model')}`",
+        f"- Device: `{est.get('device') or '—'}`",
+    ]
+    if est.get("candidates"):
+        lineas.append("- Disponibles: " + ", ".join(f"`{c}`" for c in est["candidates"]))
+    if est.get("error"):
+        lineas.append(f"- Error: {est['error']}")
+    lineas.append("")
+    lineas.append("Uso: `/lora` · `/lora v4` · `/lora load` · `/lora on|off`")
+    return "\n".join(lineas)

@@ -43,6 +43,7 @@ from SISTEMAS_AVANZADOS.NEUROGENESIS_ARTIFICIAL import CoordinadorNeurogenesis
 from SISTEMAS_AVANZADOS.ANALIZADOR_HOLISTICO_CODIGO import OrquestadorHolistico
 from NUCLEO_BIOMIMETICO.memoria_multimodal import MemoriaMultimodal
 from SISTEMAS_AVANZADOS.RAG.orquestador_rag import OrquestadorRAG
+from NUCLEO_BIOMIMETICO.llm_lora import get_llm
 
 console = Console()
 
@@ -66,12 +67,28 @@ class OrquestadorPrincipal:
         self.holistico = OrquestadorHolistico(ROOT) if self.layers.get(3, True) else None
         self.rag = OrquestadorRAG() if self.layers.get(4, True) else None
         self.mem_mm = MemoriaMultimodal() if self.layers.get(4, True) else None
+        self.llm = get_llm()
+        self._configurar_llm()
         self._ciclo_count = 0
         self._debug = False
         self._ultimo_plan = None
         self._setup_logging()
         self._setup_signals()
         cargar_estado_meta(self.meta_ajuste, self.curiosidad)
+
+
+    def _configurar_llm(self) -> None:
+        """Lee sección llm_lora del YAML y configura el cargador."""
+        cfg = (self.config or {}).get("llm_lora") or {}
+        self.llm.configurar(
+            enabled=bool(cfg.get("enabled", True)),
+            adapter=cfg.get("adapter"),
+            base_model=cfg.get("base_model"),
+        )
+        if cfg.get("preload"):
+            ok = self.llm.cargar()
+            if not ok:
+                logger.warning(f"LoRA no precargado: {self.llm.estado().get('error')}")
 
     def _setup_logging(self) -> None:
         logger.remove()

@@ -283,6 +283,15 @@ async def procesar_entrada(
             if alt:
                 respuesta = alt
 
+    # Respaldo neural (LoRA): cuando el simbólico no alcanza y no hay RAG útil
+    if sin_hechos and not rag_hits:
+        alt_llm = _respuesta_desde_lora(orch, texto_razon, razon, ctx, rag_hits)
+        if alt_llm:
+            respuesta = alt_llm
+            razon = dict(razon)
+            razon["estrategia"] = "lora"
+            razon["confianza"] = max(conf, 0.35)
+
     await orch.coordinador.enviar(
         "memoria",
         {
@@ -295,6 +304,41 @@ async def procesar_entrada(
         },
     )
     return respuesta
+
+
+def _respuesta_desde_lora(
+    orch: "OrquestadorPrincipal",
+    pregunta: str,
+    razon: dict[str, Any],
+    ctx: dict[str, Any] | None,
+    rag_hits: list,
+) -> str | None:
+    """Intenta generar con el adaptador LoRA. Devuelve None si no está disponible."""
+    try:
+        from NUCLEO_BIOMIMETICO.llm_lora import get_llm
+    except ImportError:
+        return None
+
+    llm = getattr(orch, "llm", None) or get_llm()
+    if not getattr(llm, "_enabled", True):
+        return None
+
+    partes: list[str] = []
+    conc = (razon.get("conclusion") or "").strip()
+    if conc and "no tengo hechos" not in conc.lower():
+        partes.append(f"Conclusión simbólica previa: {conc}")
+    if ctx and ctx.get("encontrados"):
+        partes.append(f"Memoria episódica: {ctx['encontrados']} recuerdo(s) relacionados.")
+    for h in (rag_hits or [])[:2]:
+        frag = (h.get("texto") or "").strip()[:400]
+        if frag:
+            partes.append(f"Documento: {frag}")
+
+    contexto = "\n".join(partes) if partes else None
+    texto = llm.generar(pregunta, contexto=contexto, max_new_tokens=220)
+    if not texto:
+        return None
+    return texto + "\n\n*generado por LoRA*"
 
 
 def formatear_respuesta(
