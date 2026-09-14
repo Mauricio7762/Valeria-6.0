@@ -46,3 +46,21 @@ homeostasis:
   critical_cpu: 95
   critical_ram: 90
   auto_throttle: true
+
+# --------------------------------------------
+# LLM LoRA (respaldo neural)
+# --------------------------------------------
+# Se usa cuando el razonamiento simbólico no tiene hechos suficientes.
+# Requiere: pip install torch transformers peft accelerate
+# El modelo base Llama-3.2-1B-Instruct es gated: exportá HF_TOKEN si hace falta.
+llm_lora:
+  enabled: true
+  # Adapter: ruta relativa al repo, o alias v1|v2|v3|v4|latest
+  adapter: "MODELOS/valeria_llama_lora_v4"
+  base_model: "meta-llama/Llama-3.2-1B-Instruct"
+  # Si true, carga pesos al arrancar (más lento el start, más rápido el 1er mensaje)
+  preload: false
+  # Umbral de confianza simbólica por debajo del cual se intenta LoRA
+  conf_threshold: 0.4
+  max_new_tokens: 220
+  temperature: 0.7
