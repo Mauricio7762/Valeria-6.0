@@ -120,3 +120,11 @@ secrets/
 *.pem
 *.key
 credentials.json
+
+# Checkpoints de entrenamiento (no subir)
+MODELOS/**/checkpoint-*/
+MODELOS/**/optimizer.pt
+MODELOS/**/scheduler.pt
+MODELOS/**/rng_state.pth
+MODELOS/**/trainer_state.json
+MODELOS/**/training_args.bin
