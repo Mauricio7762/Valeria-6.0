@@ -21,6 +21,7 @@ _ROOT = Path(__file__).resolve().parent.parent
 # Rutas conocidas de adapters (orden de preferencia al elegir "latest")
 _ADAPTER_CANDIDATES = [
     # Ubicación canónica: MODELOS/
+    _ROOT / "MODELOS" / "valeria_llama_lora_v5",
     _ROOT / "MODELOS" / "valeria_llama_lora_v4",
     _ROOT / "MODELOS" / "valeria_llama_lora_v3",
     _ROOT / "MODELOS" / "valeria_llama_lora_v2",
@@ -87,6 +88,7 @@ class LLMLora:
                 "v2": _ROOT / "MODELOS" / "valeria_llama_lora_v2",
                 "v3": _ROOT / "MODELOS" / "valeria_llama_lora_v3",
                 "v4": _ROOT / "MODELOS" / "valeria_llama_lora_v4",
+                "v5": _ROOT / "MODELOS" / "valeria_llama_lora_v5",
                 "latest": None,
             }
             if preferido.lower() in alias:

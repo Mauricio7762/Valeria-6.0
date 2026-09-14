@@ -27,7 +27,7 @@ AYUDA = """
 - `/promover` — pasar fragmentos RAG a hechos del grafo
 - `/capas` — qué capas (0-4) están activas ahora
 - `/lora` — estado del modelo LoRA (neural)
-- `/lora v4` — cambiar adapter (v1|v2|v3|v4) y recargar
+- `/lora v5` — cambiar adapter (v1|v2|v3|v4) y recargar
 - `/salir` — apagar
 
 **Uso**
@@ -362,7 +362,7 @@ async def cmd_lora(orch: "OrquestadorPrincipal", raw: str) -> str:
     parts = raw.strip().split()
     arg = parts[1].lower() if len(parts) > 1 else None
 
-    if arg in ("v1", "v2", "v3", "v4", "latest"):
+    if arg in ("v1", "v2", "v3", "v4", "v5", "latest"):
         ok = llm.cargar(adapter=arg, force=True)
         est = llm.estado()
         if ok:
@@ -406,5 +406,5 @@ async def cmd_lora(orch: "OrquestadorPrincipal", raw: str) -> str:
     if est.get("error"):
         lineas.append(f"- Error: {est['error']}")
     lineas.append("")
-    lineas.append("Uso: `/lora` · `/lora v4` · `/lora load` · `/lora on|off`")
+    lineas.append("Uso: `/lora` · `/lora v5` · `/lora load` · `/lora on|off`")
     return "\n".join(lineas)
