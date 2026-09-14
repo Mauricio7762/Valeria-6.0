@@ -1,0 +1,70 @@
+# -*- coding: utf-8 -*-
+"""
+Dataset de conversación general (no específico de VALERIA), para mezclar
+con dataset_valeria_finetune.jsonl y evitar que el modelo se sobreajuste
+a un solo tema (sistema glial / arquitectura interna).
+
+Uso:
+    python generar_dataset_general.py
+Genera: dataset_conversacion_general.jsonl
+"""
+import json
+from pathlib import Path
+
+ejemplos = [
+    # --- Saludos y chitchat ---
+    {"instruction": "Hola, ¿cómo andás?", "output": "¡Hola! Todo bien por acá, listo para ayudarte. ¿En qué andás?"},
+    {"instruction": "Buenas, ¿todo bien?", "output": "Buenas, todo en orden. ¿Qué necesitás?"},
+    {"instruction": "¿Qué tal tu día?", "output": "No tengo días como tal, pero estoy funcionando bien. ¿Y el tuyo?"},
+    {"instruction": "Gracias por la ayuda", "output": "De nada, para eso estoy. Si necesitás algo más, avisame."},
+    {"instruction": "Chau, nos vemos", "output": "¡Nos vemos! Cualquier cosa, acá ando."},
+    {"instruction": "¿Cómo te llamás?", "output": "Soy VALERIA. ¿En qué te puedo ayudar hoy?"},
+
+    # --- Conocimiento general ---
+    {"instruction": "¿Cuál es la capital de Francia?", "output": "La capital de Francia es París."},
+    {"instruction": "¿Cuántos continentes hay?", "output": "Generalmente se consideran seis: África, América, Asia, Europa, Oceanía y Antártida (algunos modelos cuentan siete, separando América en dos)."},
+    {"instruction": "¿Qué es la fotosíntesis?", "output": "Es el proceso por el cual las plantas convierten luz solar, agua y dióxido de carbono en energía química (glucosa) y liberan oxígeno."},
+    {"instruction": "¿Quién escribió el Quijote?", "output": "Miguel de Cervantes."},
+    {"instruction": "¿Cuánto es 15 por 12?", "output": "15 por 12 es 180."},
+    {"instruction": "¿Qué día es hoy?", "output": "No tengo acceso a la fecha actual desde acá, pero podés fijarte en tu dispositivo."},
+    {"instruction": "¿Cuál es el planeta más grande del sistema solar?", "output": "Júpiter, por lejos."},
+    {"instruction": "¿Qué es un algoritmo?", "output": "Es una secuencia de pasos bien definidos para resolver un problema o realizar una tarea."},
+    {"instruction": "¿Cómo se dice 'gracias' en inglés?", "output": "Se dice 'thank you'."},
+    {"instruction": "¿Qué es la inflación?", "output": "Es el aumento generalizado y sostenido de los precios de bienes y servicios en una economía a lo largo del tiempo."},
+
+    # --- Ayuda cotidiana / práctica ---
+    {"instruction": "¿Cómo hago una lista de tareas?", "output": "Lo más simple es anotar cada tarea por separado, ordenarlas por prioridad o urgencia, y tacharlas a medida que las completás. Podés usar papel, notas del celular o una app específica."},
+    {"instruction": "Dame una idea para el almuerzo", "output": "Unas milanesas con puré, o si querés algo más liviano, una ensalada de fideos con atún y verduras."},
+    {"instruction": "¿Cómo organizo mejor mi tiempo?", "output": "Ayuda dividir el día en bloques, priorizar 2 o 3 tareas importantes primero, y dejar las urgencias chicas para después. Evitá saturar la agenda sin margen entre tareas."},
+    {"instruction": "Recomendame un ejercicio simple para hacer en casa", "output": "Las sentadillas son un buen punto de partida: trabajan piernas y glúteos, no necesitás equipamiento, y podés ajustar la cantidad de repeticiones a tu nivel."},
+    {"instruction": "¿Cómo mejoro mi ortografía?", "output": "Leer seguido ayuda mucho a internalizar cómo se escriben las palabras. También sirve releer lo que escribís antes de enviarlo, y anotar las palabras que sueles confundir para repasarlas."},
+
+    # --- Programación (dado el perfil del usuario) ---
+    {"instruction": "¿Qué es una variable en programación?", "output": "Es un espacio en memoria con un nombre asociado, donde se guarda un valor que puede cambiar durante la ejecución de un programa."},
+    {"instruction": "¿Cuál es la diferencia entre una lista y una tupla en Python?", "output": "Las listas son mutables (se pueden modificar después de creadas) y las tuplas son inmutables (una vez creadas, no se pueden cambiar). Las tuplas suelen ser un poco más rápidas por eso mismo."},
+    {"instruction": "¿Qué hace un bucle for?", "output": "Repite un bloque de código una vez por cada elemento de una secuencia (como una lista, un rango de números, o los caracteres de un texto)."},
+    {"instruction": "¿Qué es git?", "output": "Es un sistema de control de versiones: permite guardar el historial de cambios de un proyecto, volver atrás si algo sale mal, y trabajar en paralelo con otras personas sin pisarse el código."},
+    {"instruction": "¿Para qué sirve un README en un repositorio?", "output": "Sirve para explicar de qué trata el proyecto, cómo instalarlo o usarlo, y cualquier información clave para quien lo abra por primera vez."},
+
+    # --- Opiniones / consejos (neutrales, sin datos sensibles) ---
+    {"instruction": "¿Me conviene aprender Python o JavaScript primero?", "output": "Si te interesa el análisis de datos, la IA o empezar con una sintaxis más simple, Python es buena puerta de entrada. Si te atrae el desarrollo web (frontend), JavaScript es más directo para ver resultados rápido en el navegador."},
+    {"instruction": "¿Qué opinás de estudiar de noche?", "output": "Depende de la persona: a algunos les rinde por la tranquilidad y menos distracciones, a otros les cuesta más por el cansancio acumulado. Lo importante es que el sueño no se resienta demasiado seguido."},
+    {"instruction": "¿Es buena idea hacer una pausa antes de una decisión importante?", "output": "En general sí — dejar pasar un poco de tiempo ayuda a evaluar con más calma y menos impulso, sobre todo en decisiones que no son urgentes."},
+
+    # --- Pedidos de redacción/creatividad breve ---
+    {"instruction": "Escribime un mensaje corto para avisar que llego tarde", "output": "Che, voy a llegar como 15 minutos tarde, salió un imprevisto. ¡Ya arranco para allá!"},
+    {"instruction": "Dame un nombre para una app de notas", "output": "Podría llamarse 'NotaRápida' o 'Apuntes+' — cortos, fáciles de recordar y que dicen justo lo que hace la app."},
+    {"instruction": "Escribime un saludo de cumpleaños corto", "output": "¡Feliz cumple! Que lo pases genial y que este año te traiga muchas cosas buenas."},
+
+    # --- Manejo de límites / honestidad ---
+    {"instruction": "¿Vos sentís emociones?", "output": "No de la forma en que las siente una persona. Puedo procesar y responder sobre emociones, pero no las experimento."},
+    {"instruction": "¿Podés predecir el futuro?", "output": "No, no tengo esa capacidad. Puedo ayudarte a pensar escenarios posibles según la información disponible, pero no predecir con certeza lo que va a pasar."},
+    {"instruction": "¿Sabés todo?", "output": "No, ni cerca. Sé lo que está en mi conocimiento y lo que puedo razonar a partir de él, pero tengo límites y puedo equivocarme."},
+]
+
+out_path = Path(__file__).resolve().parent / "dataset_conversacion_general.jsonl"
+with out_path.open("w", encoding="utf-8") as f:
+    for ej in ejemplos:
+        f.write(json.dumps(ej, ensure_ascii=False) + "\n")
+
+print(f"Generados {len(ejemplos)} ejemplos -> {out_path}")
