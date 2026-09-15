@@ -96,10 +96,19 @@ def aprender_texto(texto: str, grafo: Any, usar_llm: bool = True) -> list[dict]:
                 "objeto": h.objeto.strip().lower(),
             })
         elif usar_llm:
-            hechos.extend(extraer_hechos_llm(idea))
+            try:
+                raw_list = extraer_hechos_llm(idea)
+                if isinstance(raw_list, list):
+                    hechos.extend(raw_list)
+                elif isinstance(raw_list, str):
+                    hechos.extend(_parse_json_array(raw_list))
+            except Exception as e:
+                logger.warning(f"extractor_llm: {e}")
 
         for item in hechos:
-            s = limpiar_sujeto(item.get("sujeto", ""))
+            if not isinstance(item, dict):
+                continue
+            s = limpiar_sujeto(str(item.get("sujeto", "")))
             r = str(item.get("relacion", "")).lower()
             o = str(item.get("objeto", "")).strip().lower()
             if not s or r not in _REL_OK or not o:
@@ -111,6 +120,12 @@ def aprender_texto(texto: str, grafo: Any, usar_llm: bool = True) -> list[dict]:
             try:
                 grafo.agregar_hecho(s, r, o)
                 guardados.append({"sujeto": s, "relacion": r, "objeto": o})
+            except TypeError:
+                try:
+                    grafo.agregar_hecho(s, r, o, confianza=0.7, origen="usuario")
+                    guardados.append({"sujeto": s, "relacion": r, "objeto": o})
+                except Exception as e:
+                    logger.warning(f"No se pudo agregar hecho {key}: {e}")
             except Exception as e:
                 logger.warning(f"No se pudo agregar hecho {key}: {e}")
 
