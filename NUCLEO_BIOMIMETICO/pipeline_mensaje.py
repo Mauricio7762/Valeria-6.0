@@ -6,26 +6,17 @@ Percepción → memoria → plan meta → razonamiento → ajuste → curiosidad
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
-
 from typing import Any, TYPE_CHECKING
 
 from AGENTES_CORTICALES.razonamiento.grafo_conocimiento import normalizar
 from AGENTES_CORTICALES.razonamiento.puente_memoria import sugerir_promocion
-
-from pathlib import Path
-
 from AGENTES_CORTICALES.razonamiento.aprender_texto import aprender_texto
 
-# ejemplo: si el texto empieza con marcador de aprendizaje
-if texto_usuario.lower().startswith(("/aprender", "aprendé esto", "aprende esto")):
-    cuerpo = re.sub(r"^(/aprender|aprendé esto|aprende esto)\s*:?\s*", "", texto_usuario, flags=re.I)
-    hechos = aprender_texto(cuerpo, grafo)  # tu instancia de GrafoConocimiento
-    if hechos:
-        lineas = [f"- {h['sujeto']} — {h['relacion']} — {h['objeto']}" for h in hechos]
-        respuesta = f"Guardé {len(hechos)} hecho(s):\n" + "\n".join(lineas)
-    else:
-        respuesta = "No extraje hechos nuevos de ese texto."
+if TYPE_CHECKING:
+    from NUCLEO_BIOMIMETICO.orquestador_principal import OrquestadorPrincipal
+
 
 def _resolver_mm(orch, texto: str) -> dict:
     mem = getattr(orch, "mem_mm", None)
@@ -60,6 +51,7 @@ def _parece_pregunta_sobre_documento(texto: str) -> bool:
         "en el documento", "en el pdf", "resum",
     )
     return any(k in t for k in claves)
+
 
 def _parece_pregunta_sobre_entrada(texto: str) -> bool:
     t = (texto or "").lower()
@@ -98,7 +90,7 @@ def _respuesta_desde_mm(mm: dict, pregunta: str) -> str:
             "descripcion:",
         ):
             if pref in low:
-                caption = raw[low.find(pref) + len(pref):].strip()
+                caption = raw[low.find(pref) + len(pref) :].strip()
                 for stop in ("[imagen", "tipo=", "tamaño=", "tamano="):
                     pos = caption.lower().find(stop)
                     if pos > 0:
@@ -131,11 +123,6 @@ def _respuesta_desde_rag(hits: list, pregunta: str) -> str:
     return "\n".join(lineas).strip()
 
 
-
-if TYPE_CHECKING:
-    from NUCLEO_BIOMIMETICO.orquestador_principal import OrquestadorPrincipal
-
-
 async def procesar_mensaje(orch: "OrquestadorPrincipal", texto: str) -> str:
     return await procesar_entrada(orch, texto, percepcion=None)
 
@@ -148,13 +135,37 @@ async def procesar_entrada(
     if not orch.coordinador:
         return "Sistema de agentes no disponible."
 
+    # --- Aprender texto libre → grafo ---
+    raw = (texto or "").strip()
+    low = raw.lower()
+    if low.startswith(("/aprender", "aprendé esto", "aprende esto")):
+        cuerpo = re.sub(
+            r"^(/aprender|aprendé esto|aprende esto)\s*:?\s*",
+            "",
+            raw,
+            flags=re.IGNORECASE,
+        ).strip()
+        raz = orch._agente("razonamiento")
+        if raz is None or not hasattr(raz, "grafo"):
+            return "Agente de razonamiento no disponible."
+        hechos = aprender_texto(cuerpo, raz.grafo)
+        try:
+            raz.grafo.guardar(raz._ruta_persistencia)
+        except Exception:
+            pass
+        if hechos:
+            lineas = [
+                f"- {h['sujeto']} — {h['relacion']} — {h['objeto']}" for h in hechos
+            ]
+            return f"Guardé {len(hechos)} hecho(s):\n" + "\n".join(lineas)
+        return "No extraje hechos nuevos de ese texto."
+
     if percepcion:
         await orch.coordinador.enviar(
             "percepcion",
             {"percepcion_normalizada": percepcion, "tipo": percepcion.get("tipo", "texto")},
         )
         texto_razon = str(percepcion.get("texto_para_razonar") or texto)
-        # Recordar última entrada multimodal para preguntas siguientes
         try:
             orch._ultimo_mm = dict(percepcion)
             _mem = getattr(orch, "mem_mm", None)
@@ -165,7 +176,6 @@ async def procesar_entrada(
     else:
         await orch.coordinador.enviar("percepcion", {"tipo": "texto", "contenido": texto})
         texto_razon = texto
-        # Si pregunta sobre imagen/archivo reciente, inyectar contexto multimodal
         mm = _resolver_mm(orch, texto)
         if mm and _parece_pregunta_sobre_entrada(texto):
             ctx_mm = _texto_contexto_mm(mm)
@@ -269,13 +279,13 @@ async def procesar_entrada(
     ):
         evaluacion = dict(evaluacion)
         evaluacion["nota_usuario"] = (
-            "Si querés, enseñame el hecho con «X es un Y» o «X es parte de Y»."
+            "Si querés, enseñame el hecho con «X es un Y» o «X es parte de Y», "
+            "o usá /aprender seguido del texto."
         )
         evaluacion["calidad"] = evaluacion.get("calidad") or "insuficiente"
 
     respuesta = formatear_respuesta(orch, razon, emo, evaluacion, ctx)
 
-    # Si el grafo no sabe pero hay RAG, responder con los fragmentos
     try:
         conf = float(razon.get("confianza") or 0)
     except (TypeError, ValueError):
@@ -294,7 +304,6 @@ async def procesar_entrada(
             if alt:
                 respuesta = alt
 
-    # Respaldo neural (LoRA): cuando el simbólico no alcanza y no hay RAG útil
     if sin_hechos and not rag_hits:
         alt_llm = _respuesta_desde_lora(orch, texto_razon, razon, ctx, rag_hits)
         if alt_llm:
@@ -324,7 +333,6 @@ def _respuesta_desde_lora(
     ctx: dict[str, Any] | None,
     rag_hits: list,
 ) -> str | None:
-    """Intenta generar con el adaptador LoRA. Devuelve None si no está disponible."""
     try:
         from NUCLEO_BIOMIMETICO.llm_lora import get_llm
     except ImportError:
