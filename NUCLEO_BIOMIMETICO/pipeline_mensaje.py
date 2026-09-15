@@ -15,6 +15,17 @@ from AGENTES_CORTICALES.razonamiento.puente_memoria import sugerir_promocion
 
 from pathlib import Path
 
+from AGENTES_CORTICALES.razonamiento.aprender_texto import aprender_texto
+
+# ejemplo: si el texto empieza con marcador de aprendizaje
+if texto_usuario.lower().startswith(("/aprender", "aprendé esto", "aprende esto")):
+    cuerpo = re.sub(r"^(/aprender|aprendé esto|aprende esto)\s*:?\s*", "", texto_usuario, flags=re.I)
+    hechos = aprender_texto(cuerpo, grafo)  # tu instancia de GrafoConocimiento
+    if hechos:
+        lineas = [f"- {h['sujeto']} — {h['relacion']} — {h['objeto']}" for h in hechos]
+        respuesta = f"Guardé {len(hechos)} hecho(s):\n" + "\n".join(lineas)
+    else:
+        respuesta = "No extraje hechos nuevos de ese texto."
 
 def _resolver_mm(orch, texto: str) -> dict:
     mem = getattr(orch, "mem_mm", None)
