@@ -2,6 +2,7 @@
 Pipeline de mensaje de usuario
 ==============================
 Percepción → memoria → plan meta → razonamiento → ajuste → curiosidad → formato.
+Incluye /aprender (texto) y /aprender_pdf|/pdf.
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ from typing import Any, TYPE_CHECKING
 from AGENTES_CORTICALES.razonamiento.grafo_conocimiento import normalizar
 from AGENTES_CORTICALES.razonamiento.puente_memoria import sugerir_promocion
 from AGENTES_CORTICALES.razonamiento.aprender_texto import aprender_texto
+from AGENTES_CORTICALES.razonamiento.aprender_pdf import aprender_pdf
 
 if TYPE_CHECKING:
     from NUCLEO_BIOMIMETICO.orquestador_principal import OrquestadorPrincipal
@@ -135,10 +137,13 @@ async def procesar_entrada(
     if not orch.coordinador:
         return "Sistema de agentes no disponible."
 
-    # --- Aprender texto libre → grafo ---
     raw = (texto or "").strip()
     low = raw.lower()
-    if low.startswith(("/aprender", "aprendé esto", "aprende esto")):
+
+    # --- /aprender texto libre → grafo ---
+    if low.startswith(("/aprender", "aprendé esto", "aprende esto")) and not low.startswith(
+        ("/aprender_pdf", "/pdf")
+    ):
         cuerpo = re.sub(
             r"^(/aprender|aprendé esto|aprende esto)\s*:?\s*",
             "",
@@ -159,6 +164,35 @@ async def procesar_entrada(
             ]
             return f"Guardé {len(hechos)} hecho(s):\n" + "\n".join(lineas)
         return "No extraje hechos nuevos de ese texto."
+
+    # --- /aprender_pdf | /pdf → grafo ---
+    if low.startswith(("/aprender_pdf", "/pdf")):
+        resto = re.sub(r"^(/aprender_pdf|/pdf)\s*", "", raw, flags=re.I).strip()
+        if not resto:
+            return "Uso: /aprender_pdf ruta/al/archivo.pdf"
+        raz = orch._agente("razonamiento")
+        if raz is None or not hasattr(raz, "grafo"):
+            return "Agente de razonamiento no disponible."
+        try:
+            res = aprender_pdf(resto, raz.grafo)
+        except FileNotFoundError as e:
+            return str(e)
+        except ImportError as e:
+            return str(e)
+        except Exception as e:
+            return f"Error al leer PDF: {e}"
+        try:
+            raz.grafo.guardar(raz._ruta_persistencia)
+        except Exception:
+            pass
+        hechos = res.get("hechos") or []
+        msg = res.get("mensaje") or ""
+        if hechos:
+            lineas = [
+                f"- {h['sujeto']} — {h['relacion']} — {h['objeto']}" for h in hechos
+            ]
+            return msg + "\n" + "\n".join(lineas)
+        return msg + "\nNo extraje hechos nuevos."
 
     if percepcion:
         await orch.coordinador.enviar(
@@ -279,8 +313,8 @@ async def procesar_entrada(
     ):
         evaluacion = dict(evaluacion)
         evaluacion["nota_usuario"] = (
-            "Si querés, enseñame el hecho con «X es un Y» o «X es parte de Y», "
-            "o usá /aprender seguido del texto."
+            "Si querés, enseñame con «X es un Y», «X es parte de Y», "
+            "o /aprender texto / /aprender_pdf ruta.pdf"
         )
         evaluacion["calidad"] = evaluacion.get("calidad") or "insuficiente"
 
