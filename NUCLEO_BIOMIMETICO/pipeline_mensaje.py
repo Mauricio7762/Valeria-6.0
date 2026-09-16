@@ -15,6 +15,7 @@ from AGENTES_CORTICALES.razonamiento.grafo_conocimiento import normalizar
 from AGENTES_CORTICALES.razonamiento.puente_memoria import sugerir_promocion
 from AGENTES_CORTICALES.razonamiento.aprender_texto import aprender_texto
 from AGENTES_CORTICALES.razonamiento.aprender_pdf import aprender_pdf
+from AGENTES_CORTICALES.razonamiento.detector_intencion import detectar_saludo
 
 if TYPE_CHECKING:
     from NUCLEO_BIOMIMETICO.orquestador_principal import OrquestadorPrincipal
@@ -139,6 +140,24 @@ async def procesar_entrada(
 
     raw = (texto or "").strip()
     low = raw.lower()
+
+    # --- Saludos / despedidas / cortesías → respuesta directa ---
+    # Se abstiene si el texto parece enseñanza o pregunta real
+    # (patrón "X es un/una/parte de Y"), así no interfiere con el
+    # aprendizaje ni con el razonamiento.
+    if percepcion is None:
+        resp_saludo = detectar_saludo(raw)
+        if resp_saludo is not None:
+            await orch.coordinador.enviar("percepcion", {"tipo": "texto", "contenido": raw})
+            await orch.coordinador.enviar(
+                "memoria",
+                {
+                    "accion": "guardar_episodica",
+                    "contenido": raw,
+                    "meta": {"origen": "usuario", "modalidad": "texto", "tipo": "small_talk"},
+                },
+            )
+            return resp_saludo
 
     # --- /aprender texto libre → grafo ---
     if low.startswith(("/aprender", "aprendé esto", "aprende esto")) and not low.startswith(
