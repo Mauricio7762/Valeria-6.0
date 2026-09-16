@@ -66,8 +66,49 @@ class AgenteRazonamiento(BaseAgente):
         if hecho:
             return self._aprender(texto, hecho)
 
+        directa = self._responder_directa(texto)
+        if directa:
+            return directa
+
         plan = mensaje.get("plan_estrategias")
         return self._responder_pregunta(texto, estrategias=plan)
+
+    def _responder_directa(self, texto: str) -> dict[str, Any] | None:
+        """Si el usuario enseñó explícitamente cómo responder a esta frase
+        exacta (ej: "hola se contesta con hola", o el estilo alternativo
+        "la respuesta de hola es hola"), usar esa respuesta directo, con
+        prioridad sobre el razonamiento general (deductiva/abductiva/cbr).
+        """
+        clave = normalizar(texto)
+        if not clave:
+            return None
+
+        hechos = self.grafo.buscar(sujeto=clave, relacion="se_responde_con")
+        if not hechos:
+            hechos = self.grafo.buscar(sujeto=f"respuesta de {clave}", relacion="es")
+        if not hechos:
+            return None
+
+        hecho = hechos[0]
+        resultado = {
+            "ok": True,
+            "intencion": "respuesta_aprendida",
+            "estrategia": "aprendida_directa",
+            "confianza": hecho.confianza,
+            "razonamiento": [
+                f"1. \"{texto}\" coincide con una regla enseñada: "
+                f"se responde con \"{hecho.objeto}\""
+            ],
+            "conclusion": hecho.objeto,
+        }
+        self._mensajes_procesados += 1
+        self._ultimo_resultado = resultado
+        logger.debug(f"Razonamiento usó respuesta aprendida directa: {texto[:40]}...")
+        if self.neurogenesis is not None:
+            self.neurogenesis.registrar_hecho_usado(
+                hecho.sujeto, hecho.relacion, hecho.objeto
+            )
+        return resultado
 
     def _aprender(self, texto: str, hecho) -> dict[str, Any]:
         agregado = self.grafo.agregar_hecho(
