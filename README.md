@@ -20,7 +20,7 @@ Es la implementación de un **Cerebro Humano Digital** que replica la complejida
 | **3** | Metacognición, Curiosidad, Neurogénesis, RAG, Holístico |
 | **4** | Interfaces (Streamlit + API) |
 
-> Estado detallado de cada capa (código + tests): sección **[Estado actual del desarrollo](#estado-actual-del-desarrollo)** más abajo.
+> Estado detallado de cada capa (código + tests): sección **[Estado actual del desarrollo](#estado-actual-del-desarrollo)** más abajo.  
 > Guía rápida de ejecución: **[DOCS/COMO_CORRER.md](DOCS/COMO_CORRER.md)**
 
 ---
@@ -49,6 +49,54 @@ Representa el ~50% del cerebro biológico encargado del soporte. Las glías no �
 
 ---
 
+## Aprendizaje desde texto y PDF
+
+VALERIA puede **aprender hechos** y guardarlos en el grafo de conocimiento a partir de texto libre o de un PDF con texto seleccionable.
+
+### Flujo
+
+```
+Texto o PDF
+  → segmentar ideas (oraciones / conectores)
+  → extractor (regex + LoRA, si está disponible)
+  → limpiar sujeto
+  → grafo.agregar_hecho
+  → persistencia
+```
+
+### Archivos
+
+| Archivo | Rol |
+|---------|-----|
+| `AGENTES_CORTICALES/razonamiento/aprender_texto.py` | Texto → ideas → hechos → grafo |
+| `AGENTES_CORTICALES/razonamiento/aprender_pdf.py` | PDF → texto → `aprender_texto` |
+| `AGENTES_CORTICALES/razonamiento/extractor_llm.py` | LoRA extractor de triples |
+| `NUCLEO_BIOMIMETICO/pipeline_mensaje.py` | Comandos `/aprender` y `/aprender_pdf` |
+
+### Dependencia extra
+
+```bash
+pip install pypdf
+```
+
+(`loguru` y el resto ya entran por `requirements.txt` si aplica.)
+
+### Comandos de chat
+
+```text
+/aprender La microglía forma parte del sistema glial.
+/aprender Los astrocitos regulan la atención, mientras que la microglía limpia contextos. Ayer hizo calor.
+
+/aprender_pdf /ruta/al/archivo.pdf
+/pdf /ruta/al/archivo.pdf
+```
+
+También se aceptan prefijos: `aprendé esto` / `aprende esto`.
+
+**Nota:** los PDF escaneados (solo imagen) no tienen texto extraíble hasta sumar OCR. El extractor LoRA vive en `MODELOS/valeria_extractor_vN` (usar la versión más reciente).
+
+---
+
 ## Desarrollo por Capas + Despliegue Automático
 
 El proyecto se desarrolla y despliega de forma progresiva:
@@ -70,6 +118,8 @@ valeria-6.0/
 ├── SISTEMAS_AVANZADOS/          # Metacognición, Curiosidad, Neurogénesis, RAG, Holístico
 ├── PROCESAMIENTO_MULTIMODAL/    # Normalización de texto/imagen/audio de entrada
 ├── INTERFACES/                  # Streamlit + API (FastAPI)
+├── MODELOS/                     # Adapters LoRA (chat + extractor)
+├── ENTRENAMIENTO/               # Datasets y scripts SFT
 ├── DATA/                        # Persistencia (grafo, chunks RAG, memoria) — gitignored
 ├── TESTS/                       # Suite de pytest
 ├── DOCS/                        # Guías (cómo correr, conocimiento, visión RAG)
@@ -92,6 +142,7 @@ cd Valeria-6.0
 
 # Instalar dependencias
 pip install -r requirements.txt
+pip install pypdf
 
 # Copiar variables de entorno
 cp .env.example .env
@@ -115,10 +166,21 @@ python -m NUCLEO_BIOMIMETICO.orquestador_principal
 | **3** — Metacognición, Curiosidad, Neurogénesis, RAG, Holístico | ✅ | ✅ `TESTS/test_sistemas_avanzados/` |
 | **4** — Interfaces (Streamlit + API) | ✅ básica | ⚠️ sin tests automatizados todavía |
 
+**Reciente (aprendizaje):**
+
+| Capacidad | Estado |
+|-----------|--------|
+| Extractor LoRA (texto → triples) | ✅ `MODELOS/valeria_extractor_vN` |
+| `/aprender` texto → grafo | ✅ |
+| `/aprender_pdf` → grafo | ✅ (PDF con texto; sin OCR aún) |
+
 Pendiente conocido:
+
 - Los feature flags por capa (`layers.*` en `CONFIGURACION/valeria_config.yaml`) todavía no los lee ningún módulo — hoy funcionan como documentación, no como interruptor real.
 - Interfaces (Streamlit/API) no tienen tests automatizados.
 - Multimodal (imagen/audio) normaliza a texto pero sin modelos de visión/audio reales conectados.
+- PDF escaneados: falta OCR.
+- Capa de análisis crítico del texto (propósito, tono, sesgos): planificada, separada del extractor de hechos.
 
 ---
 
