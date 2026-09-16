@@ -17,6 +17,13 @@ _PALABRAS_INTERROGATIVAS = (
 _PATRONES_ENSEÑANZA: list[tuple[re.Pattern[str], str]] = [
     (
         re.compile(
+            r"^(.+?)\s+se\s+(?:contesta|responde|saluda)\s+con\s+(.+?)[\.\!]?$",
+            re.IGNORECASE,
+        ),
+        "se_responde_con",
+    ),
+    (
+        re.compile(
             r"^(.+?)\s+es\s+parte\s+(?:del|de\s+la|de\s+los|de\s+las|de)\s+(.+?)[\.\!]?$",
             re.IGNORECASE,
         ),
