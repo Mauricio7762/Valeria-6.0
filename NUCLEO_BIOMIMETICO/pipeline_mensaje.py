@@ -129,6 +129,47 @@ def _respuesta_desde_rag(hits: list, pregunta: str) -> str:
     return "\n".join(lineas).strip()
 
 
+def _parece_nuevo_objetivo(texto: str) -> bool:
+    t = (texto or "").lower()
+    return any(p in t for p in ("quiero", "necesito", "objetivo", "planificar"))
+
+
+def _formatear_plan(res: dict) -> str:
+    if not res.get("ok"):
+        return res.get("error") or "No pude generar el plan."
+    lineas = [f"Objetivo agregado (**#{res['indice']}**): {res['objetivo_agregado']}", ""]
+    sub_metas = res.get("sub_metas") or []
+    if len(sub_metas) > 1:
+        lineas.append(f"Lo separé en {len(sub_metas)} partes: " + "; ".join(sub_metas))
+        lineas.append("")
+    lineas.append("**Plan:**")
+    for i, p in enumerate(res.get("plan") or [], 1):
+        lineas.append(f"{i}. {p}")
+    lineas.append("")
+    lineas.append(
+        f'*Decime "/completar {res["indice"]}" cuando termines un paso, '
+        'o "/objetivos" para ver todos.*'
+    )
+    return "\n".join(lineas)
+
+
+def _formatear_listado_objetivos(res: dict) -> str:
+    objetivos = res.get("objetivos") or []
+    if not objetivos:
+        return 'Todavía no tenés objetivos guardados. Decime algo tipo "quiero aprender X" para crear uno.'
+    marca = {"pendiente": "○", "en_progreso": "◐", "completado": "●"}
+    lineas = []
+    for o in objetivos:
+        lineas.append(
+            f"{marca.get(o['estado'], '○')} **#{o['indice']}** {o['objetivo']} — {o['estado']}"
+        )
+        for p in o["pasos"]:
+            check = "[x]" if p["hecho"] else "[ ]"
+            lineas.append(f"   {check} {p['texto']}")
+        lineas.append("")
+    return "\n".join(lineas).strip()
+
+
 async def procesar_mensaje(orch: "OrquestadorPrincipal", texto: str) -> str:
     return await procesar_entrada(orch, texto, percepcion=None)
 
@@ -143,6 +184,35 @@ async def procesar_entrada(
 
     raw = (texto or "").strip()
     low = raw.lower()
+
+    # --- /objetivos → listar ---
+    if low.startswith("/objetivos"):
+        res = await orch.coordinador.enviar("planificacion", {"accion": "listar"})
+        return _formatear_listado_objetivos(res)
+
+    # --- /completar N → marcar el próximo paso pendiente del objetivo N ---
+    if low.startswith("/completar"):
+        resto = raw[len("/completar") :].strip()
+        res = await orch.coordinador.enviar(
+            "planificacion", {"accion": "completar_paso", "indice": resto}
+        )
+        if not res.get("ok"):
+            return res.get("error") or "No pude marcar ese paso."
+        extra = " 🎉 ¡Objetivo completo!" if res["estado"] == "completado" else ""
+        return (
+            f"Marqué: {res['paso_completado']}\n"
+            f"Quedan {res['pasos_restantes']} paso(s) en \"{res['objetivo']}\".{extra}"
+        )
+
+    # --- /objetivo texto | "quiero/necesito/planificar ..." → nuevo objetivo con plan visible ---
+    if percepcion is None and (
+        low.startswith(("/objetivo ", "/objetivo:")) or _parece_nuevo_objetivo(raw)
+    ):
+        cuerpo = re.sub(r"^/objetivo\s*:?\s*", "", raw, flags=re.IGNORECASE).strip() or raw
+        res = await orch.coordinador.enviar(
+            "planificacion", {"accion": "nuevo_objetivo", "objetivo": cuerpo}
+        )
+        return _formatear_plan(res)
 
     # --- /analizar texto (no escribe grafo) ---
     if low.startswith(("/analizar", "analizá esto", "analiza esto")):
@@ -304,11 +374,6 @@ async def procesar_entrada(
                 raz_agente.grafo.guardar(raz_agente._ruta_persistencia)
             except Exception:
                 pass
-
-    if any(p in texto.lower() for p in ("quiero", "necesito", "objetivo", "planificar")):
-        await orch.coordinador.enviar(
-            "planificacion", {"accion": "nuevo_objetivo", "objetivo": texto}
-        )
 
     reg = orch.meta_monitor.registrar(texto, razon)
     orch.meta_ajuste.ajustar_desde_registro(reg)
