@@ -81,8 +81,8 @@ class NormalizadorEntrada:
             partes.append(f"transcripción: {transcripcion}")
         else:
             partes.append(
-                "sin transcripción automática aún "
-                "(Capa 4: se puede conectar Whisper más adelante)"
+                "sin transcripción disponible "
+                "(no hay API de audio configurada ni faster-whisper instalado)"
             )
         texto = " ".join(partes)
         return {
@@ -138,13 +138,30 @@ class NormalizadorEntrada:
             out["caption_manual"] = bool(caption)
             return out
         if mime.startswith("audio/"):
-            return self.normalizar_audio(
+            auto = None
+            fuente = None
+            if not caption:
+                try:
+                    from PROCESAMIENTO_MULTIMODAL.audio_transcribe import transcribir_audio
+                    res = transcribir_audio(datos, mime=mime or "audio/wav", nombre=nombre)
+                    auto = res.get("transcripcion")
+                    fuente = res.get("fuente")
+                    if not auto and res.get("info_basica"):
+                        auto = res["info_basica"]
+                except Exception:
+                    pass
+            final_transcripcion = caption or auto
+            out = self.normalizar_audio(
                 nombre=nombre,
                 tamaño_bytes=len(datos),
-                transcripcion=caption,  # caption como transcripción manual
+                transcripcion=final_transcripcion,
                 ruta=ruta,
                 mime=mime,
             )
+            if fuente:
+                out["transcripcion_fuente"] = fuente
+            out["transcripcion_manual"] = bool(caption)
+            return out
         # fallback: tratar como texto si es .txt
         if nombre.lower().endswith(".txt"):
             try:
