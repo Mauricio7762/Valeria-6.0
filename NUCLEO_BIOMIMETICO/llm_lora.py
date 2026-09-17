@@ -21,15 +21,12 @@ _ROOT = Path(__file__).resolve().parent.parent
 # Rutas conocidas de adapters (orden de preferencia al elegir "latest")
 _ADAPTER_CANDIDATES = [
     # Ubicación canónica: MODELOS/
+    _ROOT / "MODELOS" / "valeria_llama_lora_v6",
     _ROOT / "MODELOS" / "valeria_llama_lora_v5",
-    _ROOT / "MODELOS" / "valeria_llama_lora_v4",
-    _ROOT / "MODELOS" / "valeria_llama_lora_v3",
-    _ROOT / "MODELOS" / "valeria_llama_lora_v2",
-    _ROOT / "MODELOS" / "valeria_llama_lora_v1",
     # Alias por si la carpeta se llama "Modelo" (singular)
-    _ROOT / "Modelo" / "valeria_llama_lora_v4",
+    _ROOT / "Modelo" / "valeria_llama_lora_v5",
     # Fallback raíz (versiones viejas del repo)
-    _ROOT / "valeria_llama_lora_v4",
+    _ROOT / "valeria_llama_lora_v5",
 ]
 
 _DEFAULT_BASE = "meta-llama/Llama-3.2-1B-Instruct"
@@ -83,13 +80,10 @@ class LLMLora:
                 p = _ROOT / p
             if (p / "adapter_config.json").exists() or (p / "adapter_model.safetensors").exists():
                 return p
-            # Alias cortos: v1, v2, v3, v4
+            # Alias cortos: v5, v6
             alias = {
-                "v1": _ROOT / "MODELOS" / "valeria_llama_lora_v1",
-                "v2": _ROOT / "MODELOS" / "valeria_llama_lora_v2",
-                "v3": _ROOT / "MODELOS" / "valeria_llama_lora_v3",
-                "v4": _ROOT / "MODELOS" / "valeria_llama_lora_v4",
                 "v5": _ROOT / "MODELOS" / "valeria_llama_lora_v5",
+                "v6": _ROOT / "MODELOS" / "valeria_llama_lora_v6",
                 "latest": None,
             }
             if preferido.lower() in alias:
@@ -138,7 +132,7 @@ class LLMLora:
         if ruta is None:
             self._load_error = (
                 "No se encontró ningún adapter LoRA. "
-                "Esperados en MODELOS/valeria_llama_lora_v1..v4/"
+                "Esperados en MODELOS/valeria_llama_lora_v5..v6/"
             )
             logger.warning(self._load_error)
             return False
