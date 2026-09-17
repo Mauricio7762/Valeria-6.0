@@ -27,6 +27,7 @@ from .razonamiento import (
     extraer_hecho,
 )
 from .razonamiento.grafo_conocimiento import normalizar
+from .razonamiento.detector_feedback import detectar_feedback_negativo
 
 # Intenciones para las que abducción (buscar causa) es la estrategia natural
 _INTENCIONES_CAUSALES = {"causal"}
@@ -44,6 +45,7 @@ class AgenteRazonamiento(BaseAgente):
         self.nlp = AnalizadorPatrones()
         self.nlg = GeneradorNLG()
         self.neurogenesis = None  # inyectado por orquestador
+        self._ultimos_hechos_usados: list = []  # para retroalimentación negativa
 
         self._ruta_persistencia = Path(
             (self.config or {}).get("ruta_grafo", _RUTA_GRAFO_DEFAULT)
@@ -61,6 +63,9 @@ class AgenteRazonamiento(BaseAgente):
             return {"ok": False, "error": "disabled"}
 
         texto = mensaje.get("pregunta") or mensaje.get("contenido") or ""
+
+        if detectar_feedback_negativo(texto):
+            return self._recibir_feedback_negativo(texto)
 
         hecho = extraer_hecho(texto)
         if hecho:
@@ -103,6 +108,7 @@ class AgenteRazonamiento(BaseAgente):
         }
         self._mensajes_procesados += 1
         self._ultimo_resultado = resultado
+        self._ultimos_hechos_usados = [hecho]
         logger.debug(f"Razonamiento usó respuesta aprendida directa: {texto[:40]}...")
         if self.neurogenesis is not None:
             self.neurogenesis.registrar_hecho_usado(
@@ -114,21 +120,42 @@ class AgenteRazonamiento(BaseAgente):
         agregado = self.grafo.agregar_hecho(
             hecho.sujeto, hecho.relacion, hecho.objeto, confianza=0.9, origen="usuario"
         )
+
+        # Si venía con prefijo de corrección ("no, en realidad..."), además
+        # bajarle la confianza a lo que se usó para la última respuesta —
+        # así no queda compitiendo al mismo nivel con el dato corregido.
+        corregidos: list = []
+        if hecho.correccion and self._ultimos_hechos_usados:
+            for h in self._ultimos_hechos_usados:
+                nuevo = self.grafo.penalizar(h.sujeto, h.relacion, h.objeto)
+                if nuevo:
+                    corregidos.append(nuevo)
+
         self.grafo.guardar(self._ruta_persistencia)
+        self._ultimos_hechos_usados = []
 
         conclusion_texto = self.nlg.generar_aprendizaje(
             agregado.sujeto, agregado.relacion, agregado.objeto
         )
+        pasos = [
+            f"1. Detectada afirmación (no pregunta): \"{texto}\"",
+            f"2. Hecho extraído: {agregado.as_tupla()}",
+        ]
+        if corregidos:
+            pasos.append(
+                "2b. Corrección: bajé la confianza de lo que había usado antes -> "
+                + ", ".join(
+                    f"{h.as_tupla()} (confianza {h.confianza:.2f})" for h in corregidos
+                )
+            )
+        pasos.append(f"3. Guardado en el grafo y persistido en {self._ruta_persistencia.name}")
+
         resultado = {
             "ok": True,
             "intencion": "enseñanza",
             "estrategia": "aprendizaje",
             "confianza": agregado.confianza,
-            "razonamiento": [
-                f"1. Detectada afirmación (no pregunta): \"{texto}\"",
-                f"2. Hecho extraído: {agregado.as_tupla()}",
-                f"3. Guardado en el grafo y persistido en {self._ruta_persistencia.name}",
-            ],
+            "razonamiento": pasos,
             "conclusion": conclusion_texto,
         }
         self._mensajes_procesados += 1
@@ -189,7 +216,55 @@ class AgenteRazonamiento(BaseAgente):
 
         self._mensajes_procesados += 1
         self._ultimo_resultado = resultado
+        self._ultimos_hechos_usados = list(getattr(inferencia, "hechos_usados", None) or [])
         logger.debug(f"Razonamiento ({inferencia.estrategia}) procesó: {pregunta[:40]}...")
+        return resultado
+
+    def _recibir_feedback_negativo(self, texto: str) -> dict[str, Any]:
+        """El usuario indicó que la última respuesta estuvo mal, sin dar
+        el dato correcto. Bajamos la confianza de lo que se usó para
+        generarla y le pedimos, si quiere, la respuesta correcta."""
+        afectados: list = []
+        for h in self._ultimos_hechos_usados:
+            nuevo = self.grafo.penalizar(h.sujeto, h.relacion, h.objeto)
+            if nuevo:
+                afectados.append(nuevo)
+
+        if afectados:
+            self.grafo.guardar(self._ruta_persistencia)
+            detalle = ", ".join(
+                f"{h.as_tupla()} (confianza {h.confianza:.2f})" for h in afectados
+            )
+            pasos = [
+                f"1. Feedback negativo recibido: \"{texto}\"",
+                f"2. Confianza reducida en: {detalle}",
+            ]
+            conclusion = (
+                "Entendido, bajé la confianza de lo que usé para esa respuesta. "
+                "Si querés, decime cuál es la respuesta correcta con \"X es Y\"."
+            )
+        else:
+            pasos = [
+                f"1. Feedback negativo recibido: \"{texto}\"",
+                "2. No tenía registrados los hechos de la última respuesta",
+            ]
+            conclusion = (
+                "Entendido. No tengo registrado qué usé para la respuesta anterior, "
+                "pero podés enseñarme la correcta con \"X es Y\"."
+            )
+
+        resultado = {
+            "ok": True,
+            "intencion": "feedback_negativo",
+            "estrategia": "retroalimentacion",
+            "confianza": 1.0,
+            "razonamiento": pasos,
+            "conclusion": conclusion,
+        }
+        self._mensajes_procesados += 1
+        self._ultimo_resultado = resultado
+        self._ultimos_hechos_usados = []
+        logger.debug(f"Razonamiento recibió feedback negativo: {texto[:40]}...")
         return resultado
 
     def _razonar(self, analisis, estrategias: list[str] | None = None):
