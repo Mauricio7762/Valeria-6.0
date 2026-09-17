@@ -102,6 +102,39 @@ class GrafoConocimiento:
     def existe(self, sujeto: str) -> bool:
         return normalizar(sujeto) in self._por_sujeto
 
+    def penalizar(
+        self,
+        sujeto: str,
+        relacion: str,
+        objeto: str,
+        factor: float = 0.5,
+        minimo: float = 0.05,
+    ) -> Hecho | None:
+        """Reduce la confianza de un hecho existente (feedback negativo
+        del usuario). No lo borra: si su confianza baja lo suficiente,
+        simplemente pesa menos frente a otros hechos en el razonamiento
+        futuro (deductiva/CBR ya priorizan por confianza)."""
+        s, r, o = normalizar(sujeto), normalizar(relacion), normalizar(objeto)
+        hechos = self.buscar(s, r, o)
+        if not hechos:
+            return None
+        viejo = hechos[0]
+        nueva_confianza = max(minimo, round(viejo.confianza * factor, 4))
+        nuevo = Hecho(s, r, o, nueva_confianza, origen="corregido")
+        self._reemplazar(viejo, nuevo)
+        return nuevo
+
+    def _reemplazar(self, viejo: Hecho, nuevo: Hecho) -> None:
+        for lista in (
+            self._hechos,
+            self._por_sujeto.get(viejo.sujeto, []),
+            self._por_relacion.get(viejo.relacion, []),
+        ):
+            for i, h in enumerate(lista):
+                if h == viejo:
+                    lista[i] = nuevo
+                    break
+
     def total_hechos(self) -> int:
         return len(self._hechos)
 

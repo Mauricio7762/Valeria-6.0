@@ -87,6 +87,11 @@ _PREFIJOS_EXPLICITOS = re.compile(
     r"^(?:recorda|recuerda|aprende|anota|guarda)\s+que\s+",
     re.IGNORECASE,
 )
+_PREFIJOS_CORRECCION = re.compile(
+    r"^(?:no|mentira|incorrecto|te\s+equivocaste|eso\s+(?:esta|está)\s+mal)"
+    r"\s*[,:]?\s*(?:en\s+realidad\s*[,:]?\s*)?",
+    re.IGNORECASE,
+)
 _ARTICULO_INICIAL = re.compile(r"^(?:el|la|los|las|un|una)\s+", re.IGNORECASE)
 _INICIO_INTERROGATIVO = re.compile(
     r"^(?:por\s+qu[eé]|a\s+qu[eé]|de\s+qu[eé]|en\s+qu[eé]|para\s+qu[eé])\b",
@@ -104,6 +109,7 @@ class HechoExtraido:
     relacion: str
     objeto: str
     explicito: bool
+    correccion: bool = False
 
 
 def extraer_hecho(texto: str) -> HechoExtraido | None:
@@ -117,6 +123,10 @@ def extraer_hecho(texto: str) -> HechoExtraido | None:
     primera = texto_norm.split(" ", 1)[0] if texto_norm else ""
     if primera in _PALABRAS_INTERROGATIVAS:
         return None
+
+    correccion = bool(_PREFIJOS_CORRECCION.match(texto_norm))
+    if correccion:
+        texto_norm = _PREFIJOS_CORRECCION.sub("", texto_norm).strip()
 
     explicito = bool(_PREFIJOS_EXPLICITOS.match(texto_norm))
     if explicito:
@@ -132,6 +142,12 @@ def extraer_hecho(texto: str) -> HechoExtraido | None:
             return None
         if len(sujeto) < 2 or len(objeto) < 2:
             return None
-        return HechoExtraido(sujeto=sujeto, relacion=relacion, objeto=objeto, explicito=explicito)
+        return HechoExtraido(
+            sujeto=sujeto,
+            relacion=relacion,
+            objeto=objeto,
+            explicito=explicito,
+            correccion=correccion,
+        )
 
     return None
