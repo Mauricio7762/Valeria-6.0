@@ -1,18 +1,20 @@
 """
 Caption automático de imágenes
 ==============================
-Proveedores OpenAI-compatible: openai | groq | kimi
+Proveedores:
+  local  → Qwen2.5-VL-3B-Instruct (español, sin API)
+  openai | groq | kimi → API OpenAI-compatible
 
-Variables de entorno (también vía archivo .env en la raíz del repo):
+Variables de entorno:
 
-  VALERIA_VISION_PROVIDER=openai|groq|kimi
+  VALERIA_VISION_PROVIDER=local|openai|groq|kimi
+  VALERIA_VISION_LOCAL_MODEL=Qwen/Qwen2.5-VL-3B-Instruct
 
   OPENAI_API_KEY / VALERIA_VISION_API_KEY
   GROQ_API_KEY
   KIMI_API_KEY / MOONSHOT_API_KEY
-
-  OPENAI_BASE_URL          (opcional, sobrescribe la base del proveedor)
-  VALERIA_VISION_MODEL     (opcional, sobrescribe el modelo)
+  OPENAI_BASE_URL
+  VALERIA_VISION_MODEL
 """
 
 from __future__ import annotations
@@ -23,7 +25,6 @@ import os
 from pathlib import Path
 from typing import Any
 
-# Cargar .env de la raíz del repo si existe (no pisa variables ya definidas)
 try:
     from dotenv import load_dotenv
 
@@ -50,81 +51,51 @@ _PROVIDERS: dict[str, dict[str, str]] = {
     },
 }
 
-def _caption_local(ruta_imagen: str | Path) -> dict[str, Any]:
-    """Caption sin API: Moondream2 (transformers)."""
+_PROMPT_ES = (
+    "Describí la imagen en español rioplatense, breve y concreto. "
+    "Mencioná lo importante: personas, objetos, texto visible, escena. "
+    "No uses inglés."
+)
+
+_LOCAL_QWEN: dict[str, Any] | None = None
+
+
+def _pil_info(datos: bytes) -> str:
     try:
-        import torch
-        from transformers import AutoModelForCausalLM, AutoTokenizer
         from PIL import Image
-    except ImportError as e:
-        return {
-            "ok": False,
-            "caption": None,
-            "error": f"Deps locales: pip install torch transformers pillow ({e})",
-            "provider": "local",
-        }
 
-    model_id = os.environ.get("VALERIA_VISION_LOCAL_MODEL") or "vikhyatk/moondream2"
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-
-    # cache simple a nivel módulo
-    global _LOCAL_VISION
-    if "_LOCAL_VISION" not in globals() or _LOCAL_VISION is None:
-        tok = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
-        model = AutoModelForCausalLM.from_pretrained(
-            model_id,
-            trust_remote_code=True,
-            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
-        )
-        model.to(device).eval()
-        _LOCAL_VISION = (tok, model)
-
-    tok, model = _LOCAL_VISION
-    img = Image.open(ruta_imagen).convert("RGB")
-
-    # API de moondream (trust_remote_code): encode + answer
-    try:
-        enc = model.encode_image(img)
-        caption = model.answer_question(enc, "Describe la imagen en español, breve y concreto.", tok)
+        img = Image.open(io.BytesIO(datos))
+        return f"imagen {img.size[0]}x{img.size[1]} modo={img.mode}"
     except Exception:
-        # fallback genérico si cambia la API del modelo
-        caption = str(model.generate(img, "Describe esta imagen en español.", tok) if hasattr(model, "generate") else "")
-
-    caption = (caption or "").strip()
-    if not caption:
-        return {"ok": False, "caption": None, "error": "Sin caption local", "provider": "local"}
-    return {"ok": True, "caption": caption, "provider": "local", "model": model_id}
+        return f"imagen {len(datos)} bytes"
 
 
-# En la función pública caption_imagen / generar_caption:
-# 1) si provider == local o no hay API key → _caption_local
-# 2) si falla y hay key → API como ahora
-
-def _resolver_config() -> tuple[str | None, str, str, str]:
-    """(api_key, base_url, model, provider_name)"""
+def _resolver_provider() -> str:
     provider = (
         os.environ.get("VALERIA_VISION_PROVIDER")
         or os.environ.get("VISION_PROVIDER")
         or ""
     ).strip().lower()
-
-    if not provider:
-        if os.environ.get("GROQ_API_KEY"):
-            provider = "groq"
-        elif os.environ.get("KIMI_API_KEY") or os.environ.get("MOONSHOT_API_KEY"):
-            provider = "kimi"
-        elif os.environ.get("OPENAI_API_KEY") or os.environ.get("VALERIA_VISION_API_KEY"):
-            provider = "openai"
-        else:
-            provider = "openai"
-
     if provider in ("moonshot", "moonshot-v1"):
         provider = "kimi"
+    if provider in ("qwen", "qwen2.5", "qwen2_5"):
+        provider = "local"
+    if provider:
+        return provider
 
+    if os.environ.get("GROQ_API_KEY"):
+        return "groq"
+    if os.environ.get("KIMI_API_KEY") or os.environ.get("MOONSHOT_API_KEY"):
+        return "kimi"
+    if os.environ.get("OPENAI_API_KEY") or os.environ.get("VALERIA_VISION_API_KEY"):
+        return "openai"
+    return "local"
+
+
+def _resolver_api_config(provider: str) -> tuple[str | None, str, str, str]:
     meta = _PROVIDERS.get(provider, _PROVIDERS["openai"])
     base = (os.environ.get("OPENAI_BASE_URL") or meta["base_url"]).rstrip("/")
     model = os.environ.get("VALERIA_VISION_MODEL") or meta["model"]
-
     if provider == "groq":
         key = os.environ.get("GROQ_API_KEY") or os.environ.get("VALERIA_VISION_API_KEY")
     elif provider == "kimi":
@@ -135,33 +106,157 @@ def _resolver_config() -> tuple[str | None, str, str, str]:
         )
     else:
         key = os.environ.get("OPENAI_API_KEY") or os.environ.get("VALERIA_VISION_API_KEY")
-
     return key, base, model, provider
 
 
-def _pil_info(datos: bytes) -> str | None:
+def _caption_qwen_local_path(ruta: str | Path, prompt: str | None = None) -> dict[str, Any]:
+    """Caption local con Qwen2.5-VL (español)."""
+    global _LOCAL_QWEN
+    try:
+        import torch
+        from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+        from qwen_vl_utils import process_vision_info
+    except ImportError as e:
+        return {
+            "ok": False,
+            "caption": None,
+            "provider": "local",
+            "error": (
+                "Faltan deps locales: pip install transformers accelerate "
+                f"qwen-vl-utils pillow torch ({e})"
+            ),
+        }
+
+    model_id = (
+        os.environ.get("VALERIA_VISION_LOCAL_MODEL")
+        or "Qwen/Qwen2.5-VL-3B-Instruct"
+    )
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    prompt = (prompt or _PROMPT_ES).strip()
+    ruta = str(Path(ruta).resolve())
+    if not Path(ruta).is_file():
+        return {
+            "ok": False,
+            "caption": None,
+            "provider": "local",
+            "error": f"No existe archivo: {ruta}",
+        }
+
+    try:
+        if _LOCAL_QWEN is None or _LOCAL_QWEN.get("model_id") != model_id:
+            dtype = torch.float16 if device == "cuda" else torch.float32
+            kwargs: dict[str, Any] = {
+                "torch_dtype": dtype,
+                "trust_remote_code": True,
+            }
+            if device == "cuda":
+                kwargs["device_map"] = "auto"
+            model = Qwen2_5_VLForConditionalGeneration.from_pretrained(model_id, **kwargs)
+            if device == "cpu":
+                model = model.to("cpu")
+            processor = AutoProcessor.from_pretrained(model_id, trust_remote_code=True)
+            _LOCAL_QWEN = {
+                "model": model,
+                "processor": processor,
+                "device": device,
+                "model_id": model_id,
+            }
+
+        model = _LOCAL_QWEN["model"]
+        processor = _LOCAL_QWEN["processor"]
+
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "image", "image": f"file://{ruta}"},
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
+        text = processor.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+        image_inputs, video_inputs = process_vision_info(messages)
+        inputs = processor(
+            text=[text],
+            images=image_inputs,
+            videos=video_inputs,
+            padding=True,
+            return_tensors="pt",
+        )
+        inputs = {k: v.to(model.device) for k, v in inputs.items()}
+
+        with torch.no_grad():
+            out_ids = model.generate(**inputs, max_new_tokens=180, do_sample=False)
+
+        trimmed = [o[len(i) :] for i, o in zip(inputs["input_ids"], out_ids)]
+        caption = processor.batch_decode(
+            trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False
+        )[0].strip()
+
+        if not caption:
+            return {
+                "ok": False,
+                "caption": None,
+                "provider": "local",
+                "error": "Caption vacío",
+            }
+        return {
+            "ok": True,
+            "caption": caption,
+            "provider": "local",
+            "model": model_id,
+        }
+    except Exception as e:
+        return {
+            "ok": False,
+            "caption": None,
+            "provider": "local",
+            "error": str(e),
+        }
+
+
+def _caption_qwen_local_bytes(datos: bytes, prompt: str | None = None) -> dict[str, Any]:
+    import tempfile
+
+    suffix = ".jpg"
     try:
         from PIL import Image
-    except ImportError:
-        return None
-    try:
+
         img = Image.open(io.BytesIO(datos))
-        return f"imagen {img.format or '?'} {img.size[0]}x{img.size[1]} modo={img.mode}"
+        fmt = (img.format or "JPEG").upper()
+        suffix = ".png" if fmt == "PNG" else ".jpg"
     except Exception:
-        return None
+        pass
+
+    with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+        tmp.write(datos)
+        path = tmp.name
+    try:
+        return _caption_qwen_local_path(path, prompt=prompt)
+    finally:
+        try:
+            Path(path).unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 def _caption_api(datos: bytes, mime: str = "image/jpeg") -> tuple[str | None, str]:
-    api_key, base, model, provider = _resolver_config()
-    if not api_key:
-        return None, provider
-
     try:
         import httpx
     except ImportError:
-        return None, provider
+        return None, "httpx-missing"
 
-    b64 = base64.standard_b64encode(datos).decode("ascii")
+    provider = _resolver_provider()
+    if provider == "local":
+        return None, "local"
+
+    api_key, base, model, provider = _resolver_api_config(provider)
+    if not api_key:
+        return None, f"{provider}:sin-api-key"
+
+    b64 = base64.b64encode(datos).decode("ascii")
     data_url = f"data:{mime};base64,{b64}"
     payload = {
         "model": model,
@@ -169,13 +264,7 @@ def _caption_api(datos: bytes, mime: str = "image/jpeg") -> tuple[str | None, st
             {
                 "role": "user",
                 "content": [
-                    {
-                        "type": "text",
-                        "text": (
-                            "Describe la imagen en español, en 1-3 frases. "
-                            "Sé concreto: objetos, texto visible, diagrama si lo hay."
-                        ),
-                    },
+                    {"type": "text", "text": _PROMPT_ES},
                     {"type": "image_url", "image_url": {"url": data_url}},
                 ],
             }
@@ -199,42 +288,53 @@ def _caption_api(datos: bytes, mime: str = "image/jpeg") -> tuple[str | None, st
         return None, f"{provider}:error:{type(e).__name__}"
 
 
-def _caption_blip(datos: bytes) -> str | None:
-    try:
-        from PIL import Image
-        from transformers import BlipForConditionalGeneration, BlipProcessor
-        import torch
-    except ImportError:
-        return None
-    try:
-        img = Image.open(io.BytesIO(datos)).convert("RGB")
-        processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
-        model = BlipForConditionalGeneration.from_pretrained(
-            "Salesforce/blip-image-captioning-base"
-        )
-        inputs = processor(img, return_tensors="pt")
-        with torch.no_grad():
-            out = model.generate(**inputs, max_new_tokens=50)
-        return processor.decode(out[0], skip_special_tokens=True)
-    except Exception:
-        return None
-
-
 def caption_imagen(datos: bytes, mime: str = "image/jpeg") -> dict[str, Any]:
-    """Devuelve {caption, fuente, provider, info_basica}."""
+    """Devuelve {caption, fuente, provider, info_basica, error?}."""
     info = _pil_info(datos)
+    provider = _resolver_provider()
+
+    if provider == "local":
+        local = _caption_qwen_local_bytes(datos)
+        if local.get("ok") and local.get("caption"):
+            return {
+                "caption": local["caption"],
+                "fuente": "local",
+                "provider": "local-qwen",
+                "model": local.get("model"),
+                "info_basica": info,
+            }
+        # fallback API si hay key
+        cap, prov = _caption_api(datos, mime)
+        if cap:
+            return {
+                "caption": cap,
+                "fuente": "api",
+                "provider": prov,
+                "info_basica": info,
+                "local_error": local.get("error"),
+            }
+        return {
+            "caption": info,
+            "fuente": "pil" if info else "ninguna",
+            "provider": "local-qwen",
+            "info_basica": info,
+            "error": local.get("error"),
+        }
 
     cap, prov = _caption_api(datos, mime)
     if cap:
         return {"caption": cap, "fuente": "api", "provider": prov, "info_basica": info}
 
-    blip = _caption_blip(datos)
-    if blip:
+    # API falló → intentar local
+    local = _caption_qwen_local_bytes(datos)
+    if local.get("ok") and local.get("caption"):
         return {
-            "caption": blip,
-            "fuente": "blip",
-            "provider": "local-blip",
+            "caption": local["caption"],
+            "fuente": "local",
+            "provider": "local-qwen",
+            "model": local.get("model"),
             "info_basica": info,
+            "api_error": prov,
         }
 
     return {
@@ -242,4 +342,45 @@ def caption_imagen(datos: bytes, mime: str = "image/jpeg") -> dict[str, Any]:
         "fuente": "pil" if info else "ninguna",
         "provider": prov if isinstance(prov, str) else None,
         "info_basica": info,
+        "error": local.get("error"),
     }
+
+
+def caption_desde_ruta(ruta: str | Path, prompt: str | None = None) -> dict[str, Any]:
+    """Caption desde path de archivo (útil para /aprender imagen o tests)."""
+    path = Path(ruta)
+    info = ""
+    try:
+        datos = path.read_bytes()
+        info = _pil_info(datos)
+    except Exception as e:
+        return {"ok": False, "caption": None, "error": str(e), "provider": None}
+
+    provider = _resolver_provider()
+    if provider == "local":
+        r = _caption_qwen_local_path(path, prompt=prompt)
+        if r.get("ok"):
+            return {**r, "info_basica": info}
+        cap, prov = _caption_api(datos, "image/jpeg")
+        if cap:
+            return {
+                "ok": True,
+                "caption": cap,
+                "provider": prov,
+                "fuente": "api",
+                "info_basica": info,
+                "local_error": r.get("error"),
+            }
+        return {**r, "info_basica": info}
+
+    cap, prov = _caption_api(datos, "image/jpeg")
+    if cap:
+        return {
+            "ok": True,
+            "caption": cap,
+            "provider": prov,
+            "fuente": "api",
+            "info_basica": info,
+        }
+    r = _caption_qwen_local_path(path, prompt=prompt)
+    return {**r, "info_basica": info, "api_error": prov}

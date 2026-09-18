@@ -1,60 +1,35 @@
-"""
-Instalación perezosa de dependencias al procesar archivos.
-
-Al subir un PDF o una imagen, VALERIA intenta asegurar los paquetes
-mínimos con pip (en el entorno actual). No reemplaza un `pip install`
-completo del proyecto; es ayuda para Codespaces / demos.
-"""
+"""Instalación perezosa de dependencias opcionales (PDF, imagen, audio, visión local)."""
 
 from __future__ import annotations
 
-import importlib
+import importlib.util
 import subprocess
 import sys
-from functools import lru_cache
 from typing import Iterable
 
-def asegurar_deps_imagen_local() -> dict:
-    return asegurar_paquetes(
-        "imagen_local",
-        (
-            ("PIL", "pillow"),
-            ("transformers", "transformers"),
-            ("torch", "torch"),
-        ),
-    )
 
-def _pip_install(*packages: str) -> tuple[bool, str]:
-    if not packages:
-        return True, ""
-    cmd = [sys.executable, "-m", "pip", "install", "-q", *packages]
+def _tiene(modulo: str) -> bool:
+    return importlib.util.find_spec(modulo) is not None
+
+
+def _pip_install(*paquetes: str) -> tuple[bool, str]:
     try:
-        r = subprocess.run(
-            cmd,
+        proc = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-q", *paquetes],
             capture_output=True,
             text=True,
-            timeout=300,
+            timeout=600,
         )
-        if r.returncode != 0:
-            err = (r.stderr or r.stdout or "pip falló").strip()
-            return False, err[-500:]
+        if proc.returncode != 0:
+            return False, (proc.stderr or proc.stdout or "pip falló")[-500:]
         return True, ""
-    except subprocess.TimeoutExpired:
-        return False, "timeout instalando paquetes"
     except Exception as e:
         return False, str(e)
 
 
-def _tiene(modulo: str) -> bool:
-    try:
-        importlib.import_module(modulo)
-        return True
-    except ImportError:
-        return False
-
-
-@lru_cache(maxsize=16)
-def asegurar_paquetes(clave: str, modulos_y_pkgs: tuple[tuple[str, str], ...]) -> dict:
+def asegurar_paquetes(
+    clave: str, modulos_y_pkgs: tuple[tuple[str, str], ...]
+) -> dict:
     """
     modulos_y_pkgs: ((nombre_import, paquete_pip), ...)
     clave: solo para cache (ej. 'pdf', 'imagen')
@@ -63,7 +38,6 @@ def asegurar_paquetes(clave: str, modulos_y_pkgs: tuple[tuple[str, str], ...]) -
     for mod, pkg in modulos_y_pkgs:
         if not _tiene(mod):
             faltan.append(pkg)
-    # únicos preservando orden
     seen: set[str] = set()
     uniq: list[str] = []
     for p in faltan:
@@ -73,10 +47,8 @@ def asegurar_paquetes(clave: str, modulos_y_pkgs: tuple[tuple[str, str], ...]) -
     if not uniq:
         return {"ok": True, "instalados": [], "mensaje": "dependencias ya disponibles"}
     ok, err = _pip_install(*uniq)
-    # invalidar no es trivial con lru; el import se reintenta
     if not ok:
         return {"ok": False, "instalados": uniq, "mensaje": err}
-    # verificar
     siguen = [pkg for mod, pkg in modulos_y_pkgs if not _tiene(mod)]
     if siguen:
         return {
@@ -88,11 +60,7 @@ def asegurar_paquetes(clave: str, modulos_y_pkgs: tuple[tuple[str, str], ...]) -
 
 
 def asegurar_deps_pdf() -> dict:
-    """pypdf obligatorio; opendataloader-pdf opcional (no auto por peso/Java)."""
-    return asegurar_paquetes(
-        "pdf",
-        (("pypdf", "pypdf"),),
-    )
+    return asegurar_paquetes("pdf", (("pypdf", "pypdf"),))
 
 
 def asegurar_deps_imagen() -> dict:
@@ -106,6 +74,27 @@ def asegurar_deps_imagen() -> dict:
     )
 
 
+def asegurar_deps_vision_local() -> dict:
+    """Qwen2.5-VL local (sin API)."""
+    return asegurar_paquetes(
+        "vision_local",
+        (
+            ("PIL", "pillow"),
+            ("torch", "torch"),
+            ("transformers", "transformers"),
+            ("accelerate", "accelerate"),
+            ("qwen_vl_utils", "qwen-vl-utils"),
+        ),
+    )
+
+
 def asegurar_deps_audio() -> dict:
-    """Por ahora no hay decoder pesado; httpx por si hay API futura."""
+    """httpx (API) + faster-whisper opcional se instala aparte si hace falta."""
     return asegurar_paquetes("audio", (("httpx", "httpx"),))
+
+
+def asegurar_deps_audio_local() -> dict:
+    return asegurar_paquetes(
+        "audio_local",
+        (("faster_whisper", "faster-whisper"),),
+    )
