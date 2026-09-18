@@ -14,6 +14,15 @@ import sys
 from functools import lru_cache
 from typing import Iterable
 
+def asegurar_deps_imagen_local() -> dict:
+    return asegurar_paquetes(
+        "imagen_local",
+        (
+            ("PIL", "pillow"),
+            ("transformers", "transformers"),
+            ("torch", "torch"),
+        ),
+    )
 
 def _pip_install(*packages: str) -> tuple[bool, str]:
     if not packages:
