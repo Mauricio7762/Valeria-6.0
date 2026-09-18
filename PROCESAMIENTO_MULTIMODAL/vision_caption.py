@@ -50,6 +50,55 @@ _PROVIDERS: dict[str, dict[str, str]] = {
     },
 }
 
+def _caption_local(ruta_imagen: str | Path) -> dict[str, Any]:
+    """Caption sin API: Moondream2 (transformers)."""
+    try:
+        import torch
+        from transformers import AutoModelForCausalLM, AutoTokenizer
+        from PIL import Image
+    except ImportError as e:
+        return {
+            "ok": False,
+            "caption": None,
+            "error": f"Deps locales: pip install torch transformers pillow ({e})",
+            "provider": "local",
+        }
+
+    model_id = os.environ.get("VALERIA_VISION_LOCAL_MODEL") or "vikhyatk/moondream2"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+
+    # cache simple a nivel módulo
+    global _LOCAL_VISION
+    if "_LOCAL_VISION" not in globals() or _LOCAL_VISION is None:
+        tok = AutoTokenizer.from_pretrained(model_id, trust_remote_code=True)
+        model = AutoModelForCausalLM.from_pretrained(
+            model_id,
+            trust_remote_code=True,
+            torch_dtype=torch.float16 if device == "cuda" else torch.float32,
+        )
+        model.to(device).eval()
+        _LOCAL_VISION = (tok, model)
+
+    tok, model = _LOCAL_VISION
+    img = Image.open(ruta_imagen).convert("RGB")
+
+    # API de moondream (trust_remote_code): encode + answer
+    try:
+        enc = model.encode_image(img)
+        caption = model.answer_question(enc, "Describe la imagen en español, breve y concreto.", tok)
+    except Exception:
+        # fallback genérico si cambia la API del modelo
+        caption = str(model.generate(img, "Describe esta imagen en español.", tok) if hasattr(model, "generate") else "")
+
+    caption = (caption or "").strip()
+    if not caption:
+        return {"ok": False, "caption": None, "error": "Sin caption local", "provider": "local"}
+    return {"ok": True, "caption": caption, "provider": "local", "model": model_id}
+
+
+# En la función pública caption_imagen / generar_caption:
+# 1) si provider == local o no hay API key → _caption_local
+# 2) si falla y hay key → API como ahora
 
 def _resolver_config() -> tuple[str | None, str, str, str]:
     """(api_key, base_url, model, provider_name)"""
