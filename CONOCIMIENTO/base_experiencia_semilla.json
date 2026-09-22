@@ -1,0 +1,67 @@
+{
+  "version": 1,
+  "descripcion": "Semilla de experiencia VALERIA (documentos/hechos/vínculos propios, no biografía del usuario)",
+  "documentos": [
+    {
+      "id": "doc_m3_comunicacion",
+      "titulo": "Comunicacion efectiva - modulo ejemplo",
+      "origen": "pdf",
+      "fecha": "2026-09-01"
+    }
+  ],
+  "conversaciones": [
+    {
+      "id": "conv_tutorial",
+      "resumen": "El usuario pidio no hablar como tutorial; preferir claridad directa.",
+      "fecha": "2026-09-15"
+    }
+  ],
+  "conceptos": [
+    {"id": "concepto_asertividad", "nombre": "asertividad"},
+    {"id": "concepto_claridad", "nombre": "claridad"},
+    {"id": "concepto_escucha", "nombre": "escucha"}
+  ],
+  "hechos": [
+    {
+      "id": "hecho_001",
+      "texto": "La asertividad es decir lo que se piensa y se necesita sin agredir.",
+      "fuente_id": "doc_m3_comunicacion",
+      "fuente_tipo": "documento"
+    },
+    {
+      "id": "hecho_002",
+      "texto": "Una respuesta corta y directa suele funcionar mejor que un manual largo.",
+      "fuente_id": "conv_tutorial",
+      "fuente_tipo": "conversacion"
+    },
+    {
+      "id": "hecho_003",
+      "texto": "La escucha activa implica prestar atencion antes de responder.",
+      "fuente_id": "doc_m3_comunicacion",
+      "fuente_tipo": "documento"
+    }
+  ],
+  "tareas": [
+    {
+      "id": "tarea_explicar_claro",
+      "descripcion": "Explicar una idea en pocas frases, sin tono de tutorial"
+    },
+    {
+      "id": "tarea_feedback_equipo",
+      "descripcion": "Dar una devolucion firme y respetuosa a alguien del equipo"
+    }
+  ],
+  "aristas": [
+    {"tipo": "EXTRAIDO_DE", "desde": "hecho_001", "hasta": "doc_m3_comunicacion"},
+    {"tipo": "EXTRAIDO_DE", "desde": "hecho_002", "hasta": "conv_tutorial"},
+    {"tipo": "EXTRAIDO_DE", "desde": "hecho_003", "hasta": "doc_m3_comunicacion"},
+    {"tipo": "MENCIONA", "desde": "hecho_001", "hasta": "concepto_asertividad"},
+    {"tipo": "MENCIONA", "desde": "hecho_002", "hasta": "concepto_claridad"},
+    {"tipo": "MENCIONA", "desde": "hecho_003", "hasta": "concepto_escucha"},
+    {"tipo": "RELACIONADO_CON", "desde": "hecho_001", "hasta": "hecho_002"},
+    {"tipo": "ACLARA", "desde": "hecho_002", "hasta": "hecho_001"},
+    {"tipo": "SIRVE_PARA", "desde": "hecho_001", "hasta": "tarea_feedback_equipo"},
+    {"tipo": "SIRVE_PARA", "desde": "hecho_002", "hasta": "tarea_explicar_claro"},
+    {"tipo": "PREPARA_PARA", "desde": "concepto_escucha", "hasta": "concepto_asertividad"}
+  ]
+}
