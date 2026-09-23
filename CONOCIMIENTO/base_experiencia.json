@@ -1,0 +1,297 @@
+{
+  "version": 1,
+  "documentos": [
+    {
+      "id": "doc_6f538266da",
+      "titulo": "08-comunicacion-asertiva.PDF",
+      "origen": "pdf",
+      "fecha": "2026-09-23T08:23:04Z"
+    }
+  ],
+  "conversaciones": [],
+  "conceptos": [
+    {
+      "id": "concepto_8cb5e15d98",
+      "nombre": "comportamiento"
+    },
+    {
+      "id": "concepto_34a0162239",
+      "nombre": "aprecio"
+    },
+    {
+      "id": "concepto_bcca1f8fdb",
+      "nombre": "autoestima"
+    },
+    {
+      "id": "concepto_9fff21b8b3",
+      "nombre": "conflicto"
+    },
+    {
+      "id": "concepto_823b6081a7",
+      "nombre": "diálogo."
+    },
+    {
+      "id": "concepto_b0375d435f",
+      "nombre": "conducta"
+    },
+    {
+      "id": "concepto_8ac4796ea0",
+      "nombre": "asertividad"
+    },
+    {
+      "id": "concepto_bccfc31330",
+      "nombre": "derechos y intereses personales."
+    },
+    {
+      "id": "concepto_cfdf1092a1",
+      "nombre": "comunicación"
+    },
+    {
+      "id": "concepto_66e8459cff",
+      "nombre": "confianza"
+    },
+    {
+      "id": "concepto_991ec82255",
+      "nombre": "respeto"
+    },
+    {
+      "id": "concepto_f81a319658",
+      "nombre": "objetividad"
+    },
+    {
+      "id": "concepto_026545a4d7",
+      "nombre": "objetivo"
+    },
+    {
+      "id": "concepto_5602728852",
+      "nombre": "claridad"
+    },
+    {
+      "id": "concepto_c0db9e6f84",
+      "nombre": "resolución de problemas."
+    }
+  ],
+  "hechos": [
+    {
+      "id": "hecho_18c1b03cc9",
+      "texto": "La mejor relación interpersonal es la asertiva y el comportamiento inhibido pasivo es una falta de habilidades conductuales necesarias.",
+      "fuente_id": "doc_6f538266da",
+      "fuente_tipo": "documento"
+    },
+    {
+      "id": "hecho_1020e7929e",
+      "texto": "La persona se comporta agresivamente cuando defiende sus derechos y intereses personales.",
+      "fuente_id": "doc_6f538266da",
+      "fuente_tipo": "documento"
+    },
+    {
+      "id": "hecho_627c7018bc",
+      "texto": "Las reglas de la conducta asertiva implica saber de las derechos y intereses personales y defenderlos.",
+      "fuente_id": "doc_6f538266da",
+      "fuente_tipo": "documento"
+    },
+    {
+      "id": "hecho_ac72f9c70f",
+      "texto": "Permitir objetividad y respeto hacia las personas.",
+      "fuente_id": "doc_6f538266da",
+      "fuente_tipo": "documento"
+    },
+    {
+      "id": "hecho_b56602bea6",
+      "texto": "Las necesidades 1 obliga a las personas a priorizar las necesidades de los demás y las reglas de la conversación obligan a respetar los puntos de vista de los demás.",
+      "fuente_id": "doc_6f538266da",
+      "fuente_tipo": "documento"
+    },
+    {
+      "id": "hecho_54bdb04762",
+      "texto": "Las reglas de la conversación son: ser lógico y intentar aprender; ser flexible y adaptarse; y la crítica es parte de una buena educación.",
+      "fuente_id": "doc_6f538266da",
+      "fuente_tipo": "documento"
+    },
+    {
+      "id": "hecho_1fb030946b",
+      "texto": "Identificar el Estilo Básico de Conducta Interpersonal es pasivo, agresivo y asertivo.",
+      "fuente_id": "doc_6f538266da",
+      "fuente_tipo": "documento"
+    },
+    {
+      "id": "hecho_f52a4df55d",
+      "texto": "Describir las Escenas Problema por escrito y de forma detallada, y explicar lo que se preocupa y lo que se necesita en el caso de ser asertivo.",
+      "fuente_id": "doc_6f538266da",
+      "fuente_tipo": "documento"
+    }
+  ],
+  "tareas": [],
+  "aristas": [
+    {
+      "tipo": "EXTRAIDO_DE",
+      "desde": "hecho_18c1b03cc9",
+      "hasta": "doc_6f538266da"
+    },
+    {
+      "tipo": "EXTRAIDO_DE",
+      "desde": "hecho_1020e7929e",
+      "hasta": "doc_6f538266da"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_1020e7929e",
+      "hasta": "concepto_8cb5e15d98"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_1020e7929e",
+      "hasta": "concepto_34a0162239"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_1020e7929e",
+      "hasta": "concepto_bcca1f8fdb"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_1020e7929e",
+      "hasta": "concepto_9fff21b8b3"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_1020e7929e",
+      "hasta": "concepto_823b6081a7"
+    },
+    {
+      "tipo": "EXTRAIDO_DE",
+      "desde": "hecho_627c7018bc",
+      "hasta": "doc_6f538266da"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_627c7018bc",
+      "hasta": "concepto_b0375d435f"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_627c7018bc",
+      "hasta": "concepto_8ac4796ea0"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_627c7018bc",
+      "hasta": "concepto_bccfc31330"
+    },
+    {
+      "tipo": "RELACIONADO_CON",
+      "desde": "hecho_627c7018bc",
+      "hasta": "hecho_1020e7929e"
+    },
+    {
+      "tipo": "RELACIONADO_CON",
+      "desde": "hecho_627c7018bc",
+      "hasta": "hecho_18c1b03cc9"
+    },
+    {
+      "tipo": "EXTRAIDO_DE",
+      "desde": "hecho_ac72f9c70f",
+      "hasta": "doc_6f538266da"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_ac72f9c70f",
+      "hasta": "concepto_cfdf1092a1"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_ac72f9c70f",
+      "hasta": "concepto_66e8459cff"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_ac72f9c70f",
+      "hasta": "concepto_991ec82255"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_ac72f9c70f",
+      "hasta": "concepto_f81a319658"
+    },
+    {
+      "tipo": "EXTRAIDO_DE",
+      "desde": "hecho_b56602bea6",
+      "hasta": "doc_6f538266da"
+    },
+    {
+      "tipo": "RELACIONADO_CON",
+      "desde": "hecho_b56602bea6",
+      "hasta": "hecho_627c7018bc"
+    },
+    {
+      "tipo": "RELACIONADO_CON",
+      "desde": "hecho_b56602bea6",
+      "hasta": "hecho_ac72f9c70f"
+    },
+    {
+      "tipo": "EXTRAIDO_DE",
+      "desde": "hecho_54bdb04762",
+      "hasta": "doc_6f538266da"
+    },
+    {
+      "tipo": "RELACIONADO_CON",
+      "desde": "hecho_54bdb04762",
+      "hasta": "hecho_b56602bea6"
+    },
+    {
+      "tipo": "RELACIONADO_CON",
+      "desde": "hecho_54bdb04762",
+      "hasta": "hecho_627c7018bc"
+    },
+    {
+      "tipo": "EXTRAIDO_DE",
+      "desde": "hecho_1fb030946b",
+      "hasta": "doc_6f538266da"
+    },
+    {
+      "tipo": "RELACIONADO_CON",
+      "desde": "hecho_1fb030946b",
+      "hasta": "hecho_18c1b03cc9"
+    },
+    {
+      "tipo": "RELACIONADO_CON",
+      "desde": "hecho_1fb030946b",
+      "hasta": "hecho_627c7018bc"
+    },
+    {
+      "tipo": "EXTRAIDO_DE",
+      "desde": "hecho_f52a4df55d",
+      "hasta": "doc_6f538266da"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_f52a4df55d",
+      "hasta": "concepto_cfdf1092a1"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_f52a4df55d",
+      "hasta": "concepto_8ac4796ea0"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_f52a4df55d",
+      "hasta": "concepto_026545a4d7"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_f52a4df55d",
+      "hasta": "concepto_5602728852"
+    },
+    {
+      "tipo": "MENCIONA",
+      "desde": "hecho_f52a4df55d",
+      "hasta": "concepto_c0db9e6f84"
+    },
+    {
+      "tipo": "RELACIONADO_CON",
+      "desde": "hecho_f52a4df55d",
+      "hasta": "hecho_1fb030946b"
+    }
+  ]
+}
